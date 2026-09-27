@@ -1,0 +1,39 @@
+name: Deploy to GitHub Pages
+
+# 每次合并到 main（或手动触发）就自动 build + 部署到 gh-pages 分支
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # 允许把 dist 推到 gh-pages 分支
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        # key 已随 .env.production 提交，Vite build 会自动注入；无需额外 secret
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true # gh-pages 只保留最新产物，覆盖旧的 mentor demo
+          enable_jekyll: false # 自动生成 .nojekyll，避免下划线目录被 Jekyll 忽略
