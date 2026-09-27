@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { mockPosts } from './data/mockPosts.js';
 import { identityOptions, interestOptions } from './data/options.js';
 import { addPost, generateJourneyLog, getPosts, getRoute, getStoryForJourney } from './services/index.js';
+import MapView from './MapView.jsx';
 
 function Onboarding({ onFinish }) {
   const [identity, setIdentity] = useState('visitor');
@@ -51,13 +52,6 @@ function BottomNav({ active, setActive }) {
       <span className="nav-icon">{icon}</span><span>{label}</span>
     </button>)}
   </nav>;
-}
-
-function MapPin({ className, src, count, label }) {
-  return <button className={`map-pin ${className}`} aria-label={`Community memory at ${label}`}>
-    {src ? <img src={src} alt="" /> : <span className="map-pin-placeholder">{label?.slice(0, 2).toUpperCase()}</span>}
-    {count && <b>{count}</b>}
-  </button>;
 }
 
 function PlayerSheet({ onClose, profile }) {
@@ -118,6 +112,13 @@ function MapScreen({ profile }) {
   const [route, setRoute] = useState(null);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getRoute({ mode: 'demo' }).then((nextRoute) => { if (!cancelled) setRoute(nextRoute); });
+    return () => { cancelled = true; };
+  }, []);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -127,22 +128,15 @@ function MapScreen({ profile }) {
     const nextRoute = await getRoute({ destination: requestedDestination, mode: 'demo' });
     setRoute(nextRoute);
     setLoading(false);
+    setSearched(true);
   };
 
   return <section className="screen map-screen page-enter">
-    <div className="map-canvas">
-      <div className="water"><span>VICTORIA HARBOUR</span></div>
-      <div className="road road-one"/><div className="road road-two"/><div className="tram-line"/>
-      <span className="district central">CENTRAL</span><span className="district sheungwan">SHEUNG WAN</span><span className="district wanchai">WAN CHAI</span>
-      <MapPin className="pin-one" src={mockPosts[0].image} label="Central Market" count="3" />
-      <MapPin className="pin-two" src={mockPosts[1].image} label="Lee Tung Street" />
-      <MapPin className="pin-three" src={mockPosts[2].image} label="Blue House" count="6" />
-      <button className="location-dot" title="Your location" />
-    </div>
+    <div className="map-canvas"><MapView route={route} /></div>
     <header className="floating-header"><span className="brand-mark">LR</span><div><b>Living Routes</b><small>Hong Kong · 香港</small></div><button className="avatar">JJ</button></header>
     <form className="route-search" onSubmit={submit}><span>⌕</span><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Enter destination…"/><button type="submit">Route</button></form>
-    {!route && <div className="map-hint"><b>{loading ? 'Preparing Route 1…' : 'Stories live on every street.'}</b><span>Search a destination to generate your route.</span></div>}
-    {route && !playerOpen && <div className="route-card page-enter">
+    {loading && <div className="map-hint"><b>Preparing Route 1…</b><span>Plotting your story route.</span></div>}
+    {searched && route && !playerOpen && <div className="route-card page-enter">
       <div className="sheet-handle"/><span className="eyebrow">AI STORY TRACK READY · CITYBUS 1</span><h2>{route.origin} → {route.destination}</h2>
       <div className="route-stats"><div><b>{route.estimatedDurationMin} min</b><span>Journey</span></div><div><b>{route.storyPoints.length}</b><span>Heritage points</span></div><div><b>2</b><span>Story tracks</span></div></div>
       <p>Story length is adapted to your travel time and interests.</p>
