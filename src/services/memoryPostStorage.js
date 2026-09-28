@@ -39,7 +39,7 @@ function renderPhotoStyle(source, photoStyle = 'original') {
       const context = canvas.getContext('2d', { willReadFrequently: photoStyle !== 'original' });
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-      if (photoStyle === 'cartoon' || photoStyle === 'pencil') {
+      if (['cartoon', 'cyberpunk', 'pencil'].includes(photoStyle)) {
         const frame = context.getImageData(0, 0, canvas.width, canvas.height);
         const original = new Uint8ClampedArray(frame.data);
         const { data } = frame;
@@ -57,9 +57,22 @@ function renderPhotoStyle(source, photoStyle = 'original') {
             if (photoStyle === 'cartoon') {
               const average = (original[index] + original[index + 1] + original[index + 2]) / 3;
               for (let channel = 0; channel < 3; channel += 1) {
-                const saturated = average + (original[index + channel] - average) * 1.35;
+                const gentlySaturated = average + (original[index + channel] - average) * 1.16;
+                const illustrated = Math.round(gentlySaturated / 26) * 26;
+                const detailed = original[index + channel] * 0.28 + illustrated * 0.72;
+                data[index + channel] = edge > 105
+                  ? Math.round(detailed * 0.7)
+                  : Math.max(0, Math.min(255, detailed));
+              }
+            } else if (photoStyle === 'cyberpunk') {
+              const average = (original[index] + original[index + 1] + original[index + 2]) / 3;
+              const light = luminance(index);
+              for (let channel = 0; channel < 3; channel += 1) {
+                const saturated = average + (original[index + channel] - average) * 1.62;
                 const blocked = Math.round(saturated / 42) * 42;
-                data[index + channel] = edge > 48 ? Math.round(blocked * 0.2) : Math.max(0, Math.min(255, blocked));
+                const neonShift = channel === 2 ? (light < 145 ? 34 : 16) : channel === 0 ? 14 : -8;
+                const neonValue = Math.max(0, Math.min(255, blocked + neonShift));
+                data[index + channel] = edge > 48 ? Math.round(neonValue * 0.18) : neonValue;
               }
             } else {
               const paperTone = Math.max(18, 255 - edge * 3.4);

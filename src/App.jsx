@@ -296,6 +296,7 @@ function MapScreen({ profile }) {
 const photoStyles = [
   ['original', 'Original'],
   ['cartoon', 'Cartoon'],
+  ['cyberpunk', 'Cyberpunk'],
   ['pencil', 'Pencil'],
   ['none', 'No Photo'],
 ];
@@ -304,7 +305,7 @@ function PhotoStylePicker({ name = 'photoStyle', defaultValue = 'original' }) {
   return <fieldset className="style-picker">
     <legend>Photo appearance</legend>
     <div>{photoStyles.map(([value, label]) => <label key={value}><input type="radio" name={name} value={value} defaultChecked={value === defaultValue}/><span>{label}</span></label>)}</div>
-    <small>Cartoon and Pencil are visual treatments, not identity protection.</small>
+    <small>Artistic treatments are created on this device and do not provide identity protection.</small>
   </fieldset>;
 }
 

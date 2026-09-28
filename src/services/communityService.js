@@ -4,11 +4,24 @@ import { applyPhotoStyle, deleteMemoryPost, listMemoryPosts, readPhotoFile, save
 import { isPointInBounds, simulateNetwork } from './utils.js';
 
 async function migratePhotoTreatment(post) {
-  if (!post.image || !['cartoon', 'pencil'].includes(post.photoStyle) || post.imageTreatmentVersion) return post;
+  if (!post.image) return post;
+
+  // Version 1 used the current high-contrast treatment under the Cartoon name.
+  // Preserve that rendered image and relabel it as Cyberpunk instead of degrading
+  // it through a second transformation.
+  if (post.photoStyle === 'cartoon' && post.imageTreatmentVersion === 1) {
+    const relabelled = { ...post, photoStyle: 'cyberpunk', imageTreatmentVersion: 2 };
+    await saveMemoryPost(relabelled);
+    return relabelled;
+  }
+
+  if (!['cartoon', 'cyberpunk', 'pencil'].includes(post.photoStyle) || post.imageTreatmentVersion) return post;
+  const migratedStyle = post.photoStyle === 'cartoon' ? 'cyberpunk' : post.photoStyle;
   const migrated = {
     ...post,
-    image: await applyPhotoStyle(post.image, post.photoStyle),
-    imageTreatmentVersion: 1,
+    image: await applyPhotoStyle(post.image, migratedStyle),
+    photoStyle: migratedStyle,
+    imageTreatmentVersion: 2,
   };
   await saveMemoryPost(migrated);
   return migrated;
@@ -60,7 +73,7 @@ export async function addPost({
     image: image || null,
     imageStatus: image ? 'user-provided-pending-review' : 'not-provided',
     photoStyle: image ? photoStyle : 'none',
-    imageTreatmentVersion: image && ['cartoon', 'pencil'].includes(photoStyle) ? 1 : 0,
+    imageTreatmentVersion: image && ['cartoon', 'cyberpunk', 'pencil'].includes(photoStyle) ? 2 : 0,
     visibility: normalizedVisibility,
     consentForAi: Boolean(consent),
     status: normalizedVisibility === 'community' ? 'pending-review' : 'private',
