@@ -1,5 +1,6 @@
 import {
   addPost,
+  deletePost,
   generateJourneyLog,
   getMyPosts,
   getPosts,
@@ -28,6 +29,8 @@ const privatePost = await addPost({ text: 'Private saved memory', location: 'blu
 const communityPost = await addPost({ text: 'Shared saved memory', location: 'central-market', visibility: 'community' });
 const savedPosts = await getMyPosts();
 const postsAfterSave = await getPosts({ filter: 'all' });
+await deletePost(privatePost.id);
+const postsAfterDelete = await getMyPosts();
 
 const checks = [
   ['onboarding uses the approved four preferences', JSON.stringify(interestOptions) === JSON.stringify(['Architecture', 'Culture', 'Food', 'Nature'])],
@@ -38,6 +41,7 @@ const checks = [
   ['memory posts persist through the shared storage service', savedPosts.some((post) => post.id === privatePost.id) && savedPosts.some((post) => post.id === communityPost.id)],
   ['private memories stay out of Community', !postsAfterSave.some((post) => post.id === privatePost.id)],
   ['community memories appear in Community', postsAfterSave.some((post) => post.id === communityPost.id)],
+  ['users can permanently delete their own memories', !postsAfterDelete.some((post) => post.id === privatePost.id)],
   ['journey log contains chapters', log.chapters.length > 0],
   ['journey log keeps the user memory', log.chapters[0].text === 'Test memory'],
   ['journey memory updates the recommendation profile', photoLog.nextRecommendation.contentType === 'heritage-facts'],

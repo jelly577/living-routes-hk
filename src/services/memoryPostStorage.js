@@ -24,7 +24,66 @@ function openDatabase() {
   });
 }
 
-export function readPhotoFile(file) {
+function renderPhotoStyle(source, photoStyle = 'original') {
+  if (photoStyle === 'none') return Promise.resolve(null);
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onerror = () => reject(new Error('This image could not be opened. Please try another JPG.'));
+    image.onload = () => {
+      const maxSide = 1200;
+      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext('2d', { willReadFrequently: photoStyle !== 'original' });
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      if (photoStyle === 'cartoon' || photoStyle === 'pencil') {
+        const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+        const original = new Uint8ClampedArray(frame.data);
+        const { data } = frame;
+        const width = canvas.width;
+        const height = canvas.height;
+        const luminance = (index) => original[index] * 0.299 + original[index + 1] * 0.587 + original[index + 2] * 0.114;
+
+        for (let y = 0; y < height; y += 1) {
+          for (let x = 0; x < width; x += 1) {
+            const index = (y * width + x) * 4;
+            const right = (y * width + Math.min(width - 1, x + 1)) * 4;
+            const below = (Math.min(height - 1, y + 1) * width + x) * 4;
+            const edge = Math.abs(luminance(index) - luminance(right)) + Math.abs(luminance(index) - luminance(below));
+
+            if (photoStyle === 'cartoon') {
+              const average = (original[index] + original[index + 1] + original[index + 2]) / 3;
+              for (let channel = 0; channel < 3; channel += 1) {
+                const saturated = average + (original[index + channel] - average) * 1.35;
+                const blocked = Math.round(saturated / 42) * 42;
+                data[index + channel] = edge > 48 ? Math.round(blocked * 0.2) : Math.max(0, Math.min(255, blocked));
+              }
+            } else {
+              const paperTone = Math.max(18, 255 - edge * 3.4);
+              data[index] = paperTone;
+              data[index + 1] = Math.min(255, paperTone + 3);
+              data[index + 2] = Math.min(255, paperTone + 8);
+            }
+          }
+        }
+        context.putImageData(frame, 0, 0);
+      }
+
+      resolve(canvas.toDataURL('image/jpeg', 0.84));
+    };
+    image.src = source;
+  });
+}
+
+export function applyPhotoStyle(source, photoStyle = 'original') {
+  if (!source || typeof document === 'undefined') return Promise.resolve(source || null);
+  return renderPhotoStyle(source, photoStyle);
+}
+
+export function readPhotoFile(file, photoStyle = 'original') {
   if (!file || typeof FileReader === 'undefined') return Promise.resolve(null);
 
   const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -39,20 +98,7 @@ export function readPhotoFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('The browser could not read this photo.'));
-    reader.onload = () => {
-      const image = new Image();
-      image.onerror = () => reject(new Error('This image could not be opened. Please try another JPG.'));
-      image.onload = () => {
-        const maxSide = 1600;
-        const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.84));
-      };
-      image.src = reader.result;
-    };
+    reader.onload = () => renderPhotoStyle(reader.result, photoStyle).then(resolve, reject);
     reader.readAsDataURL(file);
   });
 }
@@ -85,5 +131,20 @@ export async function listMemoryPosts() {
       resolve(posts);
     };
     request.onerror = () => { database.close(); reject(request.error); };
+  });
+}
+
+export async function deleteMemoryPost(id) {
+  const database = await openDatabase();
+  if (!database) {
+    fallbackPosts = fallbackPosts.filter((post) => post.id !== id);
+    return id;
+  }
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, 'readwrite');
+    transaction.objectStore(STORE_NAME).delete(id);
+    transaction.oncomplete = () => { database.close(); resolve(id); };
+    transaction.onerror = () => { database.close(); reject(transaction.error); };
   });
 }

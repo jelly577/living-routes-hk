@@ -12,6 +12,7 @@ import {
   getPosts,
   getMyPosts,
   addPost,
+  deletePost,
   generateJourneyLog,
 } from './services/index.js';
 ```
@@ -106,7 +107,7 @@ const post = await addPost({
 
 `consent: true` 只表示允许内容进入后续审核流程，不代表可以自动作为事实发布或训练数据。
 
-`getMyPosts()` 返回当前浏览器内保存的全部个人内容；`getPosts()` 只把 `visibility: 'community'` 的个人内容加入社区列表。浏览器版本使用 IndexedDB，因此刷新页面后仍会保留；它不是跨设备共享的云端后端。
+`getMyPosts()` 返回当前浏览器内保存的全部个人内容；`getPosts()` 只把 `visibility: 'community'` 的个人内容加入社区列表；`deletePost(id)` 永久删除当前设备上的一条个人记录。浏览器版本使用 IndexedDB，因此刷新页面后仍会保留；它不是跨设备共享的云端后端。Cartoon 和 Pencil 会在浏览器本地转换并保存，原型不会把照片发送给第三方图片服务。
 
 ## 五个地点 ID
 

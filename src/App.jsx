@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { mockPosts } from './data/mockPosts.js';
 import { identityOptions, interestOptions } from './data/options.js';
-import { addPost, createNarrator, generateJourneyLog, getMyPosts, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
+import { addPost, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
 import MapView from './MapView.jsx';
 
 const ethicsCommitments = [
@@ -361,6 +361,23 @@ function ExpandableText({ children, compact = false }) {
   </div>;
 }
 
+function DeletePostButton({ onDelete }) {
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const remove = async () => {
+    setDeleting(true);
+    await onDelete();
+  };
+
+  if (!confirming) return <button type="button" className="delete-post" onClick={() => setConfirming(true)}>Delete</button>;
+  return <div className="delete-confirm">
+    <span>Delete permanently?</span>
+    <button type="button" onClick={remove} disabled={deleting}>{deleting ? 'Deleting…' : 'Yes, delete'}</button>
+    <button type="button" onClick={() => setConfirming(false)} disabled={deleting}>Cancel</button>
+  </div>;
+}
+
 function CommunityScreen({ profile }) {
   const [filter, setFilter] = useState('all');
   const [posts, setPosts] = useState(mockPosts);
@@ -420,10 +437,16 @@ function CommunityScreen({ profile }) {
     setVoiceLoading(false);
   };
 
+  const removePost = async (id) => {
+    await deletePost(id);
+    setPosts((current) => current.filter((post) => post.id !== id));
+    setSavedNotice('Post deleted from this device');
+  };
+
   return <section className="screen community-screen page-enter">
     <header className="section-header"><span className="eyebrow">THE CITY REMEMBERS</span><h1>Community</h1><p>New footsteps meet stories passed down through generations.</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}<button className="voice-demo-trigger" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>♩ Try voice-note curation demo</button></header>
     <div className="segmented"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All stories</button><button className={filter === 'tourist' ? 'active' : ''} onClick={() => setFilter('tourist')}>Tourist Footprints</button><button className={filter === 'local' ? 'active' : ''} onClick={() => setFilter('local')}>Local Legends</button></div>
-    <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={post.place}/> : <div className="post-image-placeholder"><b>{post.place}</b><small>PHOTO NOT PROVIDED</small></div>}<span>{post.era}</span></div><div className="post-copy"><small>⌖ {post.place}</small><ExpandableText>{post.text}</ExpandableText><b>{post.author}</b></div></article>)}</div>
+    <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={post.place}/> : <div className="post-image-placeholder"><b>{post.place}</b><small>PHOTO NOT PROVIDED</small></div>}<span>{post.era}</span></div><div className="post-copy"><small>⌖ {post.place}</small><ExpandableText>{post.text}</ExpandableText><b>{post.author}</b>{post.createdAt && <DeletePostButton onDelete={() => removePost(post.id)}/>}</div></article>)}</div>
     <button className="fab" onClick={() => { setComposerVisibility('private'); setComposer(true); }}>＋</button>
     {composer && <div className="modal-backdrop"><form className="compose-card memory-compose" onSubmit={submitPost}><button type="button" className="close" onClick={() => setComposer(false)}>×</button><span className="eyebrow">CREATE A MEMORY POST</span><h2>Add to your journey</h2><label>Place<input name="place" placeholder="e.g. central-market"/></label><label>Your story<textarea name="memory" required placeholder="What happened here?"/></label><PhotoUpload/><PhotoStylePicker/><fieldset className="visibility-picker"><legend>Who can see this?</legend><div><label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>Only me<small>Private Journal</small></span></label><label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>Community<small>Pending review</small></span></label></div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> Allow AI-assisted curation after review</label><button className="primary wide">{composerVisibility === 'community' ? 'Post to Community' : 'Save to Private Journal'}</button></form></div>}
     {voiceDemo && <div className="modal-backdrop"><div className="compose-card voice-card"><button type="button" className="close" onClick={() => setVoiceDemo(false)}>×</button>{!voiceResult ? <><span className="eyebrow">VOICE NOTE → STORY</span><h2>Turn a Cantonese voice note into a story</h2><p className="modal-intro">Demo mode: this represents a WhatsApp voice note. The audio stays local; the pipeline shows transcription, story drafting and review routing.</p><form onSubmit={submitVoice}><label>Place<select name="voicePlace" defaultValue="blue-house"><option value="blue-house">Blue House</option><option value="lee-tung-street">Lee Tung Street</option><option value="central-market">Central Market</option></select></label><label className="upload">＋ Add a voice note <input type="file" name="voice" accept="audio/*"/><small>Optional · use the built-in reviewed sample if left empty</small></label><label>Transcript fallback <textarea name="voiceTranscript" placeholder="Optional: paste a Cantonese transcript for the demo."/></label><label className="consent-row"><input type="checkbox" name="voiceConsent"/> I have permission for AI curation</label><button className="primary wide" disabled={voiceLoading}>{voiceLoading ? 'Processing voice note…' : 'Run curation pipeline →'}</button></form></> : <VoiceResult result={voiceResult} onReset={() => setVoiceResult(null)} />}</div></div>}
@@ -488,11 +511,17 @@ function JournalScreen({ profile }) {
     setLoading(false);
   };
 
+  const removeMemory = async (id) => {
+    await deletePost(id);
+    setMemories((current) => current.filter((memory) => memory.id !== id));
+    setGenerated(null);
+  };
+
   return <section className="screen journal-screen page-enter">
     <div className="private-banner">▣ <b>Private · Only you can see this</b></div>
     <header className="section-header"><span className="eyebrow">YOUR TIME-WOVEN JOURNEY</span><h1>Private Journal</h1><p>Gather fragments now. Let AI weave them into a story when the journey ends.</p></header>
     <form className="memory-form" onSubmit={addMemory}><PhotoUpload key={uploadKey} large/><PhotoStylePicker name="journalPhotoStyle"/><div className="form-row"><input name="place" placeholder="Place"/><textarea name="text" placeholder="What did this moment feel like?"/></div><button className="secondary">Save Memory</button></form>
-    {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}<div><small>{memory.place} · {memory.visibility === 'community' ? 'Community' : 'Only me'}</small><ExpandableText compact>{memory.text}</ExpandableText></div></article>)}</div>}
+    {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}<div><small>{memory.place} · {memory.visibility === 'community' ? 'Community' : 'Only me'}</small><ExpandableText compact>{memory.text}</ExpandableText><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></article>)}</div>}
     <button className="generate-button" onClick={generate} disabled={loading}>✦ {loading ? 'Weaving your memories…' : 'Generate AI Journey Log'}</button>
     {generated && <div className="generated-log page-enter"><span className="eyebrow">GENERATED FROM YOUR ROUTE + MEMORIES</span><h2>{generated.title}</h2>{generated.chapters.map((chapter) => <div className="chapter" key={chapter.id}><i>{String(chapter.order).padStart(2, '0')}</i><div><small>{chapter.place.toUpperCase()} · {chapter.time}</small><h3>{chapter.title}</h3><p>{chapter.text}</p></div></div>)}<div className="profile-update"><small>YOUR PROFILE LEARNED</small><b>{generated.interestSignals.map((signal) => signal.label).join(' · ')}</b><p>Next recommendation: {generated.nextRecommendation.label}</p><span>{generated.nextRecommendation.reason}</span></div><button className="secondary wide">Export Memory Story</button></div>}
   </section>;
