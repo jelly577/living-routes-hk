@@ -4,6 +4,78 @@ import { identityOptions, interestOptions } from './data/options.js';
 import { addPost, createNarrator, generateJourneyLog, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
 import MapView from './MapView.jsx';
 
+const ethicsCommitments = [
+  {
+    title: 'Consent',
+    chinese: '知情同意',
+    text: 'Contributors are told how their story, voice and images may be used before anything is published.',
+  },
+  {
+    title: 'Attribution',
+    chinese: '署名选择',
+    text: 'Contributors choose to be named, credited with a pseudonym or remain anonymous.',
+  },
+  {
+    title: 'Correction rights',
+    chinese: '纠错与撤回',
+    text: 'Contributors can request corrections or withdraw their material from future use.',
+  },
+  {
+    title: 'Fair benefit sharing',
+    chinese: '合理分享收益',
+    text: 'Any institutional or commercial use should agree fair benefits with contributors and partner communities.',
+  },
+];
+
+function EthicsConsent({ onAccept }) {
+  const [signedName, setSignedName] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const canContinue = signedName.trim().length > 1 && agreed;
+
+  const submit = (event) => {
+    event.preventDefault();
+    if (!canContinue) return;
+    onAccept({
+      signedName: signedName.trim(),
+      acceptedAt: new Date().toISOString(),
+      version: 'community-ethics-v1',
+    });
+  };
+
+  return <main className="ethics-screen page-enter">
+    <header className="ethics-hero">
+      <span className="eyebrow">LIVING ROUTES HK · COMMUNITY ETHICS</span>
+      <h1>Stories belong<br/>to <em>people.</em></h1>
+      <p>Before entering, please acknowledge how Living Routes HK protects community stories while using AI.</p>
+    </header>
+
+    <section className="ethics-list" aria-label="Our community commitments">
+      {ethicsCommitments.map((item, index) => <article key={item.title}>
+        <span>{String(index + 1).padStart(2, '0')}</span>
+        <div><h2>{item.title} <small>{item.chinese}</small></h2><p>{item.text}</p></div>
+      </article>)}
+    </section>
+
+    <aside className="ai-boundary">
+      <b>AI supports — people decide.</b>
+      <p>Verified history, community memory and AI-assisted interpretation remain clearly labelled. AI may transcribe, translate and adapt approved material, but publication still requires human review.</p>
+    </aside>
+
+    <form className="ethics-signature" onSubmit={submit}>
+      <span className="eyebrow">CONSENT ACKNOWLEDGEMENT</span>
+      <label>Name / Signature
+        <input type="text" value={signedName} onChange={(event) => setSignedName(event.target.value)} placeholder="Enter your name" autoComplete="name" required/>
+      </label>
+      <label className="ethics-check">
+        <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} required/>
+        <span>I have read, understand and agree to these community commitments.</span>
+      </label>
+      <button className="primary wide" disabled={!canContinue}>Acknowledge &amp; Continue <span>→</span></button>
+      <p className="ethics-note">Prototype acknowledgement only · kept in this browser session · story contributors still approve each submission separately.</p>
+    </form>
+  </main>;
+}
+
 function Onboarding({ onFinish }) {
   const [identity, setIdentity] = useState('visitor');
   const [interests, setInterests] = useState(['Architecture', 'Culture']);
@@ -278,10 +350,12 @@ function JournalScreen() {
 }
 
 export default function App() {
+  const [ethicsConsent, setEthicsConsent] = useState(null);
   const [profile, setProfile] = useState(null);
   const [active, setActive] = useState('map');
   const content = useMemo(() => ({ map: <MapScreen profile={profile} />, community: <CommunityScreen />, journal: <JournalScreen /> })[active], [active, profile]);
 
-  if (!profile) return <Onboarding onFinish={setProfile} />;
+  if (!ethicsConsent) return <EthicsConsent onAccept={setEthicsConsent} />;
+  if (!profile) return <Onboarding onFinish={(nextProfile) => setProfile({ ...nextProfile, ethicsConsent })} />;
   return <div className="app-shell">{content}<BottomNav active={active} setActive={setActive}/></div>;
 }
