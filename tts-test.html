@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTS 试听台</title>
+<style>
+  :root { --ink:#1f2a24; --muted:#5f6b64; --line:#d9d4c9; --bg:#f6f2ea; --card:#fffdf8; --accent:#b8553a; }
+  body { margin:0; padding:20px 16px 40px; background:var(--bg); color:var(--ink); font:15px/1.55 system-ui, -apple-system, "PingFang SC", sans-serif; }
+  main { max-width:760px; margin:0 auto; display:grid; gap:14px; }
+  h1 { font-size:22px; margin:0; }
+  .hint { color:var(--muted); font-size:13px; margin:0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; display:grid; gap:10px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  select, button { font:inherit; padding:7px 10px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .bar { height:6px; background:#e7e1d6; border-radius:3px; overflow:hidden; }
+  .bar span { display:block; height:100%; width:0; background:var(--accent); transition:width .2s; }
+  .state { font-variant-numeric:tabular-nums; font-size:13px; color:var(--muted); }
+  .text { white-space:pre-wrap; }
+  .meta { font-size:12px; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td, th { text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); }
+  .ok { color:#1a7f37; } .no { color:#b42318; }
+</style>
+</head>
+<body>
+<main>
+  <h1>城市声线 · TTS 试听台</h1>
+  <p class="hint">本地测试用（npm run dev 后打开 /living-routes-hk/tts-test.html），不会打包进正式 app。播放顺序：预生成音频 → 浏览器语音 → 仅文字。</p>
+
+  <section class="card">
+    <div class="row">
+      <select id="story" aria-label="讲稿"></select>
+      <select id="lang" aria-label="语言">
+        <option value="en">English</option>
+        <option value="zh-CN">普通话</option>
+        <option value="zh-HK">粤语</option>
+      </select>
+    </div>
+    <div class="row">
+      <button id="play" class="primary">▶ 播放</button>
+      <button id="pause">❚❚ 暂停</button>
+      <button id="resume">继续</button>
+      <button id="stop">■ 停止</button>
+      <button id="next">切到下一篇（测试停旧播新）</button>
+    </div>
+    <div class="bar"><span id="bar"></span></div>
+    <div class="state" id="state">idle</div>
+    <div><strong id="title"></strong></div>
+    <div class="text" id="text"></div>
+    <div class="meta" id="meta"></div>
+  </section>
+
+  <section class="card">
+    <strong>这台设备的语音支持</strong>
+    <table><thead><tr><th>语言</th><th>浏览器语音</th><th>预生成音频</th></tr></thead><tbody id="support"></tbody></table>
+  </section>
+</main>
+
+<script type="module">
+  import { allStories, localizeStory } from './src/content/stories.js';
+  import { createNarrator, pickVoice, loadAudioManifest, storyAudioKey } from './src/services/ttsService.js';
+
+  const $ = (id) => document.getElementById(id);
+  allStories.forEach((s, i) => $('story').add(new Option(`${s.placeId} · ${s.track} · ${s.length}`, i)));
+
+  const narrator = createNarrator({
+    onStateChange: ({ state, mode, reason }) => { $('state').textContent = `${state}${mode ? ' · ' + mode : ''}${reason ? ' · ' + reason : ''}`; },
+    onProgress: (p) => { $('bar').style.width = `${Math.round(p * 100)}%`; },
+  });
+
+  const current = () => allStories[Number($('story').value)];
+  async function show() {
+    const s = current(); const lang = $('lang').value; const l = localizeStory(s, lang);
+    $('title').textContent = l.title; $('text').textContent = l.text;
+    const m = (await loadAudioManifest())[storyAudioKey(s, lang)];
+    $('meta').textContent = `估算 ${l.durationSec}s` + (m ? ` · 音频 ${m.durationSec}s（${m.voice}）` : ' · 无预生成音频') + (l.disclosure ? ` · ${l.disclosure}` : '');
+  }
+  $('story').onchange = $('lang').onchange = () => { narrator.stop(); show(); };
+  $('play').onclick = () => narrator.play(current(), $('lang').value);
+  $('pause').onclick = () => narrator.pause();
+  $('resume').onclick = () => narrator.resume();
+  $('stop').onclick = () => narrator.stop();
+  $('next').onclick = () => { $('story').value = (Number($('story').value) + 1) % allStories.length; show(); narrator.play(current(), $('lang').value); };
+  show();
+
+  (async () => {
+    const manifest = await loadAudioManifest();
+    for (const [lang, label] of [['en', 'English'], ['zh-CN', '普通话'], ['zh-HK', '粤语']]) {
+      const v = await pickVoice(lang);
+      const n = Object.values(manifest).filter((e) => e.language === lang).length;
+      $('support').insertAdjacentHTML('beforeend', `<tr><td>${label}</td><td class="${v ? 'ok' : 'no'}">${v ? v.name : '无'}</td><td class="${n ? 'ok' : 'no'}">${n} / ${allStories.length}</td></tr>`);
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { mockJourneyLog } from '../data/mockJourneyLog.js';
+import { buildNextRecommendation, deriveInterestSignals } from './recommendationService.js';
 import { simulateNetwork } from './utils.js';
 
 export async function generateJourneyLog({
@@ -17,6 +18,7 @@ export async function generateJourneyLog({
       text: memory.text || 'A private moment saved along the route.',
     }))
     : mockJourneyLog.chapters;
+  const interestSignals = deriveInterestSignals(memories);
 
   return simulateNetwork({
     ...mockJourneyLog,
@@ -26,5 +28,7 @@ export async function generateJourneyLog({
     memoryCount: memories.length,
     style,
     language,
+    interestSignals,
+    nextRecommendation: buildNextRecommendation(interestSignals),
   }, 900);
 }

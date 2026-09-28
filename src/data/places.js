@@ -1,3 +1,6 @@
+import { placeImages } from '../content/placeImages.js';
+import { storiesByPlace } from '../content/stories.js';
+
 const pendingStory = (placeName, track, length) => ({
   title: `${placeName} · ${track === 'official' ? 'Official Heritage' : 'Civilian Voices'}`,
   text: `[Demo placeholder: C will provide the reviewed ${length} ${track} script.]`,
@@ -83,14 +86,17 @@ export const places = [
 ].map((place) => ({
   ...place,
   coordinateStatus: 'demo-coordinate-needs-field-verification',
-  image: {
+  // C: verified images live in src/content/placeImages.js; placeholder stays as fallback.
+  image: placeImages[place.id]?.image ?? {
     url: null,
     alt: `${place.nameEn} verified location photograph`,
     sourceUrl: null,
     license: null,
     status: 'pending-content-verification',
   },
-  stories: createStoryTracks(place.nameEn, place.sourceUrls),
+  gallery: placeImages[place.id]?.gallery ?? [],
+  // C: reviewed scripts live in src/content/stories.js; placeholders remain as fallback.
+  stories: storiesByPlace[place.id] ?? createStoryTracks(place.nameEn, place.sourceUrls),
 }));
 
 export const getPlaceById = (placeId) => places.find((place) => place.id === placeId);

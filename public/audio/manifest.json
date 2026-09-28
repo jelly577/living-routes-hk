@@ -1,0 +1,410 @@
+{
+  "central-market.official.medium.en": {
+    "file": "central-market.official.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 33.8,
+    "kb": 211,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.civilian.medium.en": {
+    "file": "central-market.civilian.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 32.7,
+    "kb": 205,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.civilian.medium.en": {
+    "file": "court-of-final-appeal.civilian.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 29.4,
+    "kb": 184,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.short.en": {
+    "file": "lee-tung-street.official.short.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 10.1,
+    "kb": 66,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.medium.en": {
+    "file": "lee-tung-street.official.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 33.3,
+    "kb": 207,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.long.en": {
+    "file": "lee-tung-street.official.long.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 66.4,
+    "kb": 403,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.short.en": {
+    "file": "lee-tung-street.civilian.short.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 8.2,
+    "kb": 56,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.medium.en": {
+    "file": "lee-tung-street.civilian.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 28.2,
+    "kb": 176,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.long.en": {
+    "file": "lee-tung-street.civilian.long.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 58.8,
+    "kb": 359,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.short.en": {
+    "file": "blue-house.official.short.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 7.5,
+    "kb": 50,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.medium.en": {
+    "file": "blue-house.official.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 33.7,
+    "kb": 209,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.long.en": {
+    "file": "blue-house.official.long.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 65,
+    "kb": 394,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.short.en": {
+    "file": "blue-house.civilian.short.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 10.3,
+    "kb": 67,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.medium.en": {
+    "file": "blue-house.civilian.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 30.7,
+    "kb": 191,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.long.en": {
+    "file": "blue-house.civilian.long.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 64.1,
+    "kb": 391,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.official.medium.en": {
+    "file": "happy-valley-racecourse.official.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 37.5,
+    "kb": 232,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.civilian.medium.en": {
+    "file": "happy-valley-racecourse.civilian.medium.en.m4a",
+    "language": "en",
+    "voice": "Daniel",
+    "durationSec": 37.3,
+    "kb": 231,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.official.medium.zh-CN": {
+    "file": "central-market.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 30.2,
+    "kb": 189,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.civilian.medium.zh-CN": {
+    "file": "central-market.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 32.5,
+    "kb": 204,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.civilian.medium.zh-CN": {
+    "file": "court-of-final-appeal.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 32.4,
+    "kb": 202,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.short.zh-CN": {
+    "file": "lee-tung-street.official.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 9.1,
+    "kb": 58,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.medium.zh-CN": {
+    "file": "lee-tung-street.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 30.8,
+    "kb": 193,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.long.zh-CN": {
+    "file": "lee-tung-street.official.long.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 60.9,
+    "kb": 372,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.short.zh-CN": {
+    "file": "lee-tung-street.civilian.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 7.7,
+    "kb": 50,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.medium.zh-CN": {
+    "file": "lee-tung-street.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 27.2,
+    "kb": 171,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.long.zh-CN": {
+    "file": "lee-tung-street.civilian.long.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 54,
+    "kb": 331,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.short.zh-CN": {
+    "file": "blue-house.official.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 6,
+    "kb": 41,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.medium.zh-CN": {
+    "file": "blue-house.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 32,
+    "kb": 201,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.long.zh-CN": {
+    "file": "blue-house.official.long.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 56.9,
+    "kb": 349,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.short.zh-CN": {
+    "file": "blue-house.civilian.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 9.4,
+    "kb": 59,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.medium.zh-CN": {
+    "file": "blue-house.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 29.7,
+    "kb": 186,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.long.zh-CN": {
+    "file": "blue-house.civilian.long.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 58.6,
+    "kb": 358,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.official.medium.zh-CN": {
+    "file": "happy-valley-racecourse.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 34.5,
+    "kb": 215,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.civilian.medium.zh-CN": {
+    "file": "happy-valley-racecourse.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "voice": "Tingting",
+    "durationSec": 34.4,
+    "kb": 214,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.official.medium.zh-HK": {
+    "file": "central-market.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 29.2,
+    "kb": 182,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.civilian.medium.zh-HK": {
+    "file": "central-market.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 31.9,
+    "kb": 199,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.civilian.medium.zh-HK": {
+    "file": "court-of-final-appeal.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 32.2,
+    "kb": 201,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.short.zh-HK": {
+    "file": "lee-tung-street.official.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 9.3,
+    "kb": 60,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.medium.zh-HK": {
+    "file": "lee-tung-street.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 31.1,
+    "kb": 195,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.long.zh-HK": {
+    "file": "lee-tung-street.official.long.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 60.5,
+    "kb": 369,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.short.zh-HK": {
+    "file": "lee-tung-street.civilian.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 7.8,
+    "kb": 50,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.medium.zh-HK": {
+    "file": "lee-tung-street.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 27.7,
+    "kb": 174,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.long.zh-HK": {
+    "file": "lee-tung-street.civilian.long.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 53.4,
+    "kb": 327,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.short.zh-HK": {
+    "file": "blue-house.official.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 6.6,
+    "kb": 44,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.medium.zh-HK": {
+    "file": "blue-house.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 33.1,
+    "kb": 206,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.long.zh-HK": {
+    "file": "blue-house.official.long.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 59.3,
+    "kb": 363,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.short.zh-HK": {
+    "file": "blue-house.civilian.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 10,
+    "kb": 65,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.medium.zh-HK": {
+    "file": "blue-house.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 30.6,
+    "kb": 191,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.long.zh-HK": {
+    "file": "blue-house.civilian.long.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 57.6,
+    "kb": 352,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.official.medium.zh-HK": {
+    "file": "happy-valley-racecourse.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 35.3,
+    "kb": 220,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.civilian.medium.zh-HK": {
+    "file": "happy-valley-racecourse.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "voice": "Sinji",
+    "durationSec": 35.8,
+    "kb": 223,
+    "generatedAt": "2026-09-28"
+  }
+}
