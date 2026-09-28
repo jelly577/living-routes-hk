@@ -1,9 +1,13 @@
 // One-sentence interest lead-ins, prepended to a reviewed script (Student C).
 // Each line restates a fact already in that place's sourced scripts — no new facts.
-// Interest keys match options.js: Architecture / Local Life / People's Memories / Official History.
+// Current onboarding interests match options.js. Legacy keys remain supported so older
+// local profiles and reviewed demo scripts continue to work during the migration.
 
 export const INTEREST_KEYS = {
   Architecture: 'architecture',
+  Culture: 'culture',
+  Food: 'food',
+  Nature: 'nature',
   'Local Life': 'local-life',
   "People's Memories": 'people-memories',
   'Official History': 'official-history',
@@ -12,6 +16,9 @@ export const INTEREST_KEYS = {
 // Which track each interest leans towards (used for a recommendation, never forced).
 export const INTEREST_TRACK = {
   architecture: 'official',
+  culture: 'culture',
+  food: 'culture',
+  nature: 'official',
   'official-history': 'official',
   'local-life': 'civilian',
   'people-memories': 'civilian',

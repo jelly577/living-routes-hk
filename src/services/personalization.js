@@ -27,7 +27,10 @@ export function recommendTrack(interests = []) {
   const keys = normalizeInterests(interests);
   if (!keys.length) return null;
   const votes = keys.reduce((acc, k) => ({ ...acc, [INTEREST_TRACK[k]]: (acc[INTEREST_TRACK[k]] || 0) + 1 }), {});
-  return (votes.civilian || 0) > (votes.official || 0) ? 'civilian' : 'official';
+  return ['official', 'culture', 'civilian'].reduce(
+    (best, track) => (votes[track] || 0) > (votes[best] || 0) ? track : best,
+    'official',
+  );
 }
 
 export function personalizeStory({ place, track = 'official', remainingTimeSec = 45, interests = [], language = 'en' }) {

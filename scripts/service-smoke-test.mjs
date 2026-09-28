@@ -5,6 +5,7 @@ import {
   getStoryForJourney,
   processVoiceSubmission,
 } from '../src/services/index.js';
+import { interestOptions } from '../src/data/options.js';
 
 const route = await getRoute({ mode: 'demo' });
 const shortStory = await getStoryForJourney({
@@ -23,6 +24,7 @@ const cultureBite = await getStoryForJourney({ placeId: 'central-market', track:
 const voice = await processVoiceSubmission({ placeId: 'blue-house', consent: true });
 
 const checks = [
+  ['onboarding uses the approved four preferences', JSON.stringify(interestOptions) === JSON.stringify(['Architecture', 'Culture', 'Food', 'Nature'])],
   ['route contains five story points', route.storyPoints.length === 5],
   ['10 seconds selects a short story', shortStory.length === 'short'],
   ['80 seconds selects a long story', longStory.length === 'long'],

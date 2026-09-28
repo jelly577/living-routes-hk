@@ -6,7 +6,7 @@ import MapView from './MapView.jsx';
 
 function Onboarding({ onFinish }) {
   const [identity, setIdentity] = useState('visitor');
-  const [interests, setInterests] = useState(['Architecture', 'Official History']);
+  const [interests, setInterests] = useState(['Architecture', 'Culture']);
   const selectedIdentity = identityOptions.find((item) => item.value === identity);
 
   const toggle = (value) => setInterests((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
@@ -29,7 +29,7 @@ function Onboarding({ onFinish }) {
 
       <section className="quiz-card">
         <div className="question-number">02</div>
-        <h2>What stories are you looking for?</h2>
+        <h2>What are you interested in?</h2>
         <div className="chips">
           {interestOptions.map((item) => <button key={item} className={interests.includes(item) ? 'chip active' : 'chip'} onClick={() => toggle(item)}>{item}</button>)}
         </div>

@@ -13,7 +13,7 @@ export const identityOptions = [
 
 export const interestOptions = [
   'Architecture',
-  'Local Life',
-  "People's Memories",
-  'Official History',
+  'Culture',
+  'Food',
+  'Nature',
 ];
