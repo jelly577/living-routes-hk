@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { mockPosts } from './data/mockPosts.js';
 import { identityOptions, interestOptions } from './data/options.js';
 import { addPost, createNarrator, generateJourneyLog, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
@@ -126,17 +126,19 @@ function BottomNav({ active, setActive }) {
   </nav>;
 }
 
-function PlayerSheet({ onClose, profile }) {
+function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
   const [mode, setMode] = useState('official');
   const [language, setLanguage] = useState('en');
   const [progress, setProgress] = useState(0);
   const [storyResult, setStoryResult] = useState(null);
   const [trackNotice, setTrackNotice] = useState('');
   const [audioState, setAudioState] = useState({ state: 'idle', mode: null });
+  const [collapsed, setCollapsed] = useState(false);
   const narrator = useMemo(() => createNarrator({
     onStateChange: setAudioState,
     onProgress: (value) => setProgress(Math.round(value * 100)),
   }), []);
+  const lastAutoPlayedRef = useRef(null);
 
   useEffect(() => () => narrator.stop(), [narrator]);
 
@@ -160,9 +162,9 @@ function PlayerSheet({ onClose, profile }) {
   useEffect(() => {
     let cancelled = false;
     getStoryForJourney({
-      placeId: 'central-market',
+      placeId: placeId || 'central-market',
       track: mode,
-      remainingTimeSec: 45,
+      remainingTimeSec: remainingTimeSec || 45,
       interests: profile?.interests || [],
       audience: profile?.identity || 'visitor',
       language,
@@ -170,7 +172,15 @@ function PlayerSheet({ onClose, profile }) {
       if (!cancelled) setStoryResult(result);
     });
     return () => { cancelled = true; };
-  }, [mode, profile, language]);
+  }, [mode, profile, language, placeId, remainingTimeSec]);
+
+  // 到达新站点时自动连播（切换语言/主题时 placeId 未变，不会重复播放）
+  useEffect(() => {
+    const storyPlaceId = storyResult?.story?.placeId;
+    if (!storyPlaceId || storyPlaceId === lastAutoPlayedRef.current) return;
+    lastAutoPlayedRef.current = storyPlaceId;
+    narrator.play(storyResult.story, language);
+  }, [storyResult, language, narrator]);
 
   const togglePlayback = () => {
     if (!storyResult?.story) return;
@@ -185,25 +195,44 @@ function PlayerSheet({ onClose, profile }) {
       ? 'Audio unavailable · reading text'
       : trackNotice || (audioState.state === 'ended' ? 'Story ended' : 'Approaching Central Market');
 
-  return <div className={`player-sheet ${mode}`}>
-    <div className="sheet-handle" />
-    <button className="close" onClick={onClose}>×</button>
-    <span className="eyebrow">CITYBUS 1 · CENTRAL → HAPPY VALLEY</span>
-    <h2>{storyResult?.story.title || 'Loading story…'}</h2>
-    <div className="mode-toggle">
-      <button className={mode === 'official' ? 'active' : ''} onClick={() => changeMode('official')}>Heritage Facts</button>
-      <button className={mode === 'civilian' ? 'active' : ''} onClick={() => changeMode('civilian')}>Local Voices</button>
-      <button className={mode === 'culture' ? 'active' : ''} onClick={() => changeMode('culture')}>Culture Bites</button>
-    </div>
-    <div className="language-toggle"><button className={language === 'en' ? 'active' : ''} onClick={() => changeLanguage('en')}>EN</button><button className={language === 'zh-CN' ? 'active' : ''} onClick={() => changeLanguage('zh-CN')}>普通话</button><button className={language === 'zh-HK' ? 'active' : ''} onClick={() => changeLanguage('zh-HK')}>粤语</button></div>
-    <div className="source-line">{mode === 'official' ? '✓ Source-grounded · official source attached' : `✦ ${storyResult?.story.disclosure || (mode === 'culture' ? 'Curated from public sources' : 'Demo civilian sample · not a verified resident submission')}`}</div>
-    {storyResult?.story.sourceUrls?.length > 0 && <div className="source-links">{storyResult.story.sourceUrls.map((url, index) => <a href={url} target="_blank" rel="noreferrer" key={url}>Source {index + 1}</a>)}</div>}
-    <p className="story-preview">{storyResult?.story.text || 'Loading story text…'}</p>
-    <div className="player-row">
-      <button className="play" onClick={togglePlayback} disabled={!storyResult}>{audioState.state === 'playing' ? 'Ⅱ' : '▶'}</button>
-      <div className="progress-wrap"><div className="progress"><span style={{ width: `${progress}%` }} /></div><div className="time"><span>{stateLabel}{audioState.mode ? ` · ${audioState.mode}` : ''}</span><span>{storyResult?.story.durationSec || 30}s story</span></div></div>
-    </div>
-    <div className="stops"><span className="done">Macao Ferry</span><span className="current">Central Market</span><span>Wan Chai</span><span>Happy Valley</span></div>
+  const toggleCollapse = () => setCollapsed((c) => !c);
+
+  return <div className={`player-sheet ${mode} ${collapsed ? 'collapsed' : ''}`}>
+    {collapsed ? (
+      <div className="player-mini-row">
+        <button className="play mini" onClick={togglePlayback} disabled={!storyResult}>{audioState.state === 'playing' ? 'Ⅱ' : '▶'}</button>
+        <div className="player-mini-title" onClick={toggleCollapse}>
+          <b>{storyResult?.story.title || '讲解已就绪'}</b>
+          <small>{stateLabel}</small>
+        </div>
+        <button className="mini-icon" onClick={toggleCollapse} title="展开讲解">⌃</button>
+        <button className="mini-icon" onClick={onClose} title="关闭">×</button>
+      </div>
+    ) : (
+      <>
+        <div className="player-head" onClick={toggleCollapse}>
+          <div className="sheet-handle" />
+          <span className="eyebrow">CITYBUS 1 · CENTRAL → HAPPY VALLEY</span>
+          <h2>{storyResult?.story.title || 'Loading story…'}</h2>
+        </div>
+        <button className="sheet-collapse" onClick={toggleCollapse} title="收起讲解">⌄</button>
+        <button className="close" onClick={onClose}>×</button>
+        <div className="mode-toggle">
+          <button className={mode === 'official' ? 'active' : ''} onClick={() => changeMode('official')}>Heritage Facts</button>
+          <button className={mode === 'civilian' ? 'active' : ''} onClick={() => changeMode('civilian')}>Local Voices</button>
+          <button className={mode === 'culture' ? 'active' : ''} onClick={() => changeMode('culture')}>Culture Bites</button>
+        </div>
+        <div className="language-toggle"><button className={language === 'en' ? 'active' : ''} onClick={() => changeLanguage('en')}>EN</button><button className={language === 'zh-CN' ? 'active' : ''} onClick={() => changeLanguage('zh-CN')}>普通话</button><button className={language === 'zh-HK' ? 'active' : ''} onClick={() => changeLanguage('zh-HK')}>粤语</button></div>
+        <div className="source-line">{mode === 'official' ? '✓ Source-grounded · official source attached' : `✦ ${storyResult?.story.disclosure || (mode === 'culture' ? 'Curated from public sources' : 'Demo civilian sample · not a verified resident submission')}`}</div>
+        {storyResult?.story.sourceUrls?.length > 0 && <div className="source-links">{storyResult.story.sourceUrls.map((url, index) => <a href={url} target="_blank" rel="noreferrer" key={url}>Source {index + 1}</a>)}</div>}
+        <p className="story-preview">{storyResult?.story.text || 'Loading story text…'}</p>
+        <div className="player-row">
+          <button className="play" onClick={togglePlayback} disabled={!storyResult}>{audioState.state === 'playing' ? 'Ⅱ' : '▶'}</button>
+          <div className="progress-wrap"><div className="progress"><span style={{ width: `${progress}%` }} /></div><div className="time"><span>{stateLabel}{audioState.mode ? ` · ${audioState.mode}` : ''}</span><span>{storyResult?.story.durationSec || 30}s story</span></div></div>
+        </div>
+        <div className="stops"><span className="done">Macao Ferry</span><span className="current">Central Market</span><span>Wan Chai</span><span>Happy Valley</span></div>
+      </>
+    )}
   </div>;
 }
 
@@ -213,6 +242,9 @@ function MapScreen({ profile }) {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [currentPlaceId, setCurrentPlaceId] = useState(null);
+  const [timeToNextSec, setTimeToNextSec] = useState(null);
+  const [chromeCollapsed, setChromeCollapsed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,10 +263,25 @@ function MapScreen({ profile }) {
     setSearched(true);
   };
 
-  return <section className="screen map-screen page-enter">
-    <div className="map-canvas"><MapView route={route} /></div>
-    <header className="floating-header"><span className="brand-mark">LR</span><div><b>Living Routes</b><small>Hong Kong · 香港</small></div><button className="avatar">JJ</button></header>
-    <form className="route-search" onSubmit={submit}><span>⌕</span><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Enter destination…"/><button type="submit">Route</button></form>
+  const handleArrive = (place, nextSec) => {
+    if (!place?.id) return;
+    setCurrentPlaceId(place.id);
+    setTimeToNextSec(nextSec ?? null);
+    setPlayerOpen(true);
+  };
+
+  return <section className={`screen map-screen page-enter ${chromeCollapsed ? 'chrome-collapsed' : ''}`}>
+    <div className="map-canvas"><MapView route={route} onArrive={handleArrive} /></div>
+    {chromeCollapsed ? (
+      <button className="chrome-mini" onClick={() => setChromeCollapsed(false)}>
+        <span className="brand-mark chrome-mini-mark">LR</span><b>展开</b>
+      </button>
+    ) : (
+      <>
+        <header className="floating-header"><span className="brand-mark">LR</span><div><b>Living Routes</b><small>Hong Kong · 香港</small></div><button className="avatar">JJ</button><button className="chrome-close" onClick={() => setChromeCollapsed(true)} title="收起顶部栏">⌃</button></header>
+        <form className="route-search" onSubmit={submit}><span>⌕</span><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Enter destination…"/><button type="submit">Route</button></form>
+      </>
+    )}
     {loading && <div className="map-hint"><b>Preparing Route 1…</b><span>Plotting your story route.</span></div>}
     {searched && route && !playerOpen && <div className="route-card page-enter">
       <div className="sheet-handle"/><span className="eyebrow">AI STORY TRACK READY · CITYBUS 1</span><h2>{route.origin} → {route.destination}</h2>
@@ -242,7 +289,7 @@ function MapScreen({ profile }) {
       <p>Story length is adapted to your travel time and interests.</p>
       <button className="primary wide" onClick={() => setPlayerOpen(true)}>Begin Route <span>▶</span></button>
     </div>}
-    {playerOpen && <PlayerSheet profile={profile} onClose={() => setPlayerOpen(false)} />}
+    {playerOpen && <PlayerSheet profile={profile} placeId={currentPlaceId} remainingTimeSec={timeToNextSec} onClose={() => setPlayerOpen(false)} />}
   </section>;
 }
 
