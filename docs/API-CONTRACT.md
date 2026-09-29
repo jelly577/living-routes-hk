@@ -109,6 +109,20 @@ const post = await addPost({
 
 `getMyPosts()` 返回当前浏览器内保存的全部个人内容；`getPosts()` 只把 `visibility: 'community'` 的个人内容加入社区列表；`deletePost(id)` 永久删除当前设备上的一条个人记录。浏览器版本使用 IndexedDB，因此刷新页面后仍会保留；它不是跨设备共享的云端后端。Cartoon、Cyberpunk 和 Pencil 会在浏览器本地转换并保存，原型不会把照片发送给第三方图片服务。
 
+### 语音投稿与声音副本授权
+
+```js
+const result = await processVoiceSubmission({
+  audioFile,
+  transcript,
+  placeId: 'blue-house',
+  consent: true, // 转写、翻译与故事整理
+  voiceReplicaConsent: false, // 独立的声音副本授权
+});
+```
+
+`consent` 与 `voiceReplicaConsent` 不得合并。声音副本必须由实际说话者单独授权，并允许撤回；没有声音副本授权时，播放原始录音或中性旁白。当前原型只记录该选择，不会创建或上传声音模型。
+
 ## 五个地点 ID
 
 ```text

@@ -75,10 +75,19 @@ function renderPhotoStyle(source, photoStyle = 'original') {
                 data[index + channel] = edge > 48 ? Math.round(neonValue * 0.18) : neonValue;
               }
             } else {
-              const paperTone = Math.max(18, 255 - edge * 3.4);
-              data[index] = paperTone;
-              data[index + 1] = Math.min(255, paperTone + 3);
-              data[index + 2] = Math.min(255, paperTone + 8);
+              // Colour-pencil treatment: preserve the source hues, lift them
+              // towards warm paper and add a restrained graphite-like edge.
+              // The previous treatment discarded all colour and produced a
+              // sparse black-and-white outline.
+              const average = (original[index] + original[index + 1] + original[index + 2]) / 3;
+              const grain = ((x * 17 + y * 29) % 11) - 5;
+              for (let channel = 0; channel < 3; channel += 1) {
+                const coloured = average + (original[index + channel] - average) * 1.18;
+                const paper = channel === 0 ? 248 : channel === 1 ? 243 : 232;
+                const softened = coloured * 0.62 + paper * 0.38;
+                const pencilEdge = Math.min(82, edge * 0.78);
+                data[index + channel] = Math.max(0, Math.min(255, softened - pencilEdge + grain));
+              }
             }
           }
         }

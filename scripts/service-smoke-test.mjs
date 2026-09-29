@@ -49,6 +49,7 @@ const checks = [
   ['voice demo returns a Cantonese transcript', voice.transcription.language === 'zh-HK'],
   ['voice demo returns three language drafts', Object.keys(voice.generatedStory.languages).length === 3],
   ['voice demo routes content to human review', voice.moderation.status === 'needs-human-review'],
+  ['voice replica requires separate consent', voice.voiceOutput.replicaStatus === 'not-authorised'],
 ];
 
 for (const [label, passed] of checks) {

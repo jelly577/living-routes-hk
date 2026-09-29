@@ -83,6 +83,7 @@ export async function processVoiceSubmission({
   transcript,
   placeId = 'blue-house',
   consent = false,
+  voiceReplicaConsent = false,
 } = {}) {
   const place = getPlaceById(placeId) || getPlaceById('blue-house');
   const transcription = normalizeTranscript(transcript, place.id);
@@ -114,6 +115,17 @@ export async function processVoiceSubmission({
       track: 'civilian',
       disclosure: 'Demo sample based on a provided voice-note transcript; not a verified resident submission.',
       languages: source,
+    },
+    voiceOutput: {
+      preferredPlayback: 'original-recording',
+      neutralNarrationFallback: true,
+      replicaConsent: Boolean(consent && voiceReplicaConsent),
+      replicaStatus: consent && voiceReplicaConsent
+        ? 'consent-recorded-provider-not-connected'
+        : voiceReplicaConsent
+          ? 'missing-curation-consent'
+          : 'not-authorised',
+      disclosure: 'A voice replica requires separate, revocable speaker consent. No cloned audio is generated in this prototype.',
     },
     moderation: {
       status: 'needs-human-review',

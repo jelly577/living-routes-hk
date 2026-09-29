@@ -143,7 +143,10 @@ export function createNarrator({ onStateChange, onProgress } = {}) {
       const u = new SpeechSynthesisUtterance(part);
       u.voice = voice;
       u.lang = voice.lang;
-      u.rate = 1;
+      // A slightly slower, neutral delivery is less synthetic than the browser
+      // default while remaining intelligible on a moving bus.
+      u.rate = 0.92;
+      u.pitch = 0.98;
       u.onstart = () => { if (my === token && i === 0) emit('playing'); };
       u.onboundary = (e) => { if (my === token) progress((spoken + e.charIndex) / total); };
       u.onend = () => {
