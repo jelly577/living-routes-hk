@@ -1,0 +1,488 @@
+{
+  "central-market.official.medium.en": {
+    "file": "central-market.official.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 34.1,
+    "kb": 295,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.civilian.medium.en": {
+    "file": "central-market.civilian.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 33.5,
+    "kb": 290,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.civilian.medium.en": {
+    "file": "court-of-final-appeal.civilian.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 30.9,
+    "kb": 270,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.short.en": {
+    "file": "lee-tung-street.official.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 10.7,
+    "kb": 94,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.medium.en": {
+    "file": "lee-tung-street.official.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 33.9,
+    "kb": 290,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.long.en": {
+    "file": "lee-tung-street.official.long.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 67.3,
+    "kb": 590,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.short.en": {
+    "file": "lee-tung-street.civilian.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 9.2,
+    "kb": 84,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.medium.en": {
+    "file": "lee-tung-street.civilian.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 29.4,
+    "kb": 256,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.long.en": {
+    "file": "lee-tung-street.civilian.long.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 61,
+    "kb": 527,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.short.en": {
+    "file": "blue-house.official.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 9.1,
+    "kb": 79,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.medium.en": {
+    "file": "blue-house.official.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 33.7,
+    "kb": 289,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.long.en": {
+    "file": "blue-house.official.long.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 65.6,
+    "kb": 572,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.short.en": {
+    "file": "blue-house.civilian.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 10.8,
+    "kb": 96,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.medium.en": {
+    "file": "blue-house.civilian.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 32,
+    "kb": 275,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.long.en": {
+    "file": "blue-house.civilian.long.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 66.2,
+    "kb": 570,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.official.medium.en": {
+    "file": "happy-valley-racecourse.official.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 38,
+    "kb": 334,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.civilian.medium.en": {
+    "file": "happy-valley-racecourse.civilian.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 39,
+    "kb": 343,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.official.medium.zh-CN": {
+    "file": "central-market.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 30.8,
+    "kb": 254,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.civilian.medium.zh-CN": {
+    "file": "central-market.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 33.2,
+    "kb": 281,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.civilian.medium.zh-CN": {
+    "file": "court-of-final-appeal.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 32.6,
+    "kb": 273,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.short.zh-CN": {
+    "file": "lee-tung-street.official.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 10.1,
+    "kb": 81,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.medium.zh-CN": {
+    "file": "lee-tung-street.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 31.5,
+    "kb": 262,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.short.zh-CN": {
+    "file": "lee-tung-street.civilian.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 8.7,
+    "kb": 74,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.medium.zh-CN": {
+    "file": "lee-tung-street.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 27.7,
+    "kb": 231,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.long.zh-CN": {
+    "file": "lee-tung-street.civilian.long.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 54.7,
+    "kb": 457,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.short.zh-CN": {
+    "file": "blue-house.official.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 7,
+    "kb": 58,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.medium.zh-CN": {
+    "file": "blue-house.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 31.7,
+    "kb": 261,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.long.zh-CN": {
+    "file": "blue-house.official.long.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 57.8,
+    "kb": 480,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.short.zh-CN": {
+    "file": "blue-house.civilian.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 9.6,
+    "kb": 79,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.medium.zh-CN": {
+    "file": "blue-house.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 30.3,
+    "kb": 250,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.long.zh-CN": {
+    "file": "blue-house.civilian.long.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 60,
+    "kb": 506,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.official.medium.zh-CN": {
+    "file": "happy-valley-racecourse.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 37.2,
+    "kb": 312,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.civilian.medium.zh-CN": {
+    "file": "happy-valley-racecourse.civilian.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 36.6,
+    "kb": 307,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.official.medium.zh-HK": {
+    "file": "central-market.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 32.7,
+    "kb": 260,
+    "generatedAt": "2026-09-28"
+  },
+  "central-market.civilian.medium.zh-HK": {
+    "file": "central-market.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 35,
+    "kb": 283,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.civilian.medium.zh-HK": {
+    "file": "court-of-final-appeal.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 34,
+    "kb": 277,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.short.zh-HK": {
+    "file": "lee-tung-street.official.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 11,
+    "kb": 90,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.medium.zh-HK": {
+    "file": "lee-tung-street.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 32.6,
+    "kb": 261,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.long.zh-HK": {
+    "file": "lee-tung-street.official.long.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 63.8,
+    "kb": 514,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.short.zh-HK": {
+    "file": "lee-tung-street.civilian.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 8.9,
+    "kb": 69,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.medium.zh-HK": {
+    "file": "lee-tung-street.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 29.7,
+    "kb": 233,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.civilian.long.zh-HK": {
+    "file": "lee-tung-street.civilian.long.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 57.3,
+    "kb": 455,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.short.zh-HK": {
+    "file": "blue-house.official.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 7.6,
+    "kb": 59,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.medium.zh-HK": {
+    "file": "blue-house.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 32.3,
+    "kb": 263,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.official.long.zh-HK": {
+    "file": "blue-house.official.long.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 61,
+    "kb": 489,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.short.zh-HK": {
+    "file": "blue-house.civilian.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 10.8,
+    "kb": 84,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.medium.zh-HK": {
+    "file": "blue-house.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 32.3,
+    "kb": 260,
+    "generatedAt": "2026-09-28"
+  },
+  "blue-house.civilian.long.zh-HK": {
+    "file": "blue-house.civilian.long.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 61.9,
+    "kb": 493,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.official.medium.zh-HK": {
+    "file": "happy-valley-racecourse.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 39.6,
+    "kb": 314,
+    "generatedAt": "2026-09-28"
+  },
+  "happy-valley-racecourse.civilian.medium.zh-HK": {
+    "file": "happy-valley-racecourse.civilian.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 40.1,
+    "kb": 312,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.official.medium.en": {
+    "file": "court-of-final-appeal.official.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 29.9,
+    "kb": 261,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.official.medium.zh-CN": {
+    "file": "court-of-final-appeal.official.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 29.5,
+    "kb": 249,
+    "generatedAt": "2026-09-28"
+  },
+  "court-of-final-appeal.official.medium.zh-HK": {
+    "file": "court-of-final-appeal.official.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 30.7,
+    "kb": 247,
+    "generatedAt": "2026-09-28"
+  },
+  "lee-tung-street.official.long.zh-CN": {
+    "file": "lee-tung-street.official.long.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 61.3,
+    "kb": 506,
+    "generatedAt": "2026-09-29"
+  }
+}
