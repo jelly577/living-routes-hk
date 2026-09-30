@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { mockPosts } from './data/mockPosts.js';
 import { identityOptions, interestOptions } from './data/options.js';
-import { addPost, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
+import { addPost, analyzeInterestProfile, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
 import { applyPhotoStyle } from './services/memoryPostStorage.js';
 import MapView from './MapView.jsx';
 
@@ -135,7 +135,7 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
   const [storyResult, setStoryResult] = useState(null);
   const [trackNotice, setTrackNotice] = useState('');
   const [audioState, setAudioState] = useState({ state: 'idle', mode: null });
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true); // 默认紧凑细条，不遮地图蓝点/pin
   const narrator = useMemo(() => createNarrator({
     onStateChange: setAudioState,
     onProgress: (value) => setProgress(Math.round(value * 100)),
@@ -168,6 +168,7 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
       track: mode,
       remainingTimeSec: remainingTimeSec || 45,
       interests: profile?.interests || [],
+      interestProfile: profile?.interestProfile,
       audience: profile?.identity || 'visitor',
       language,
     }).then((result) => {
@@ -224,7 +225,7 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
           <button className={mode === 'civilian' ? 'active' : ''} onClick={() => changeMode('civilian')}>Local Voices</button>
           <button className={mode === 'culture' ? 'active' : ''} onClick={() => changeMode('culture')}>Culture Bites</button>
         </div>
-        <div className="language-toggle"><button className={language === 'en' ? 'active' : ''} onClick={() => changeLanguage('en')}>EN</button><button className={language === 'zh-CN' ? 'active' : ''} onClick={() => changeLanguage('zh-CN')}>普通话</button><button className={language === 'zh-HK' ? 'active' : ''} onClick={() => changeLanguage('zh-HK')}>粤语</button></div>
+        <div className="language-toggle"><button className={language === 'en' ? 'active' : ''} onClick={() => changeLanguage('en')}>English</button><button className={language === 'zh-HK' ? 'active' : ''} onClick={() => changeLanguage('zh-HK')}>Cantonese 粤语</button><button className={language === 'zh-CN' ? 'active' : ''} onClick={() => changeLanguage('zh-CN')}>Mandarin 普通话</button></div>
         <div className="source-line">{mode === 'official' ? '✓ Source-grounded · official source attached' : `✦ ${storyResult?.story.disclosure || (mode === 'culture' ? 'Curated from public sources' : 'Demo civilian sample · not a verified resident submission')}`}</div>
         {storyResult?.story.sourceUrls?.length > 0 && <div className="source-links">{storyResult.story.sourceUrls.map((url, index) => <a href={url} target="_blank" rel="noreferrer" key={url}>Source {index + 1}</a>)}</div>}
         <p className="story-preview">{storyResult?.story.text || 'Loading story text…'}</p>
@@ -238,7 +239,203 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
   </div>;
 }
 
-function MapScreen({ profile }) {
+function PlacePostsSheet({ place, onClose, onPostAdded }) {
+  const [posts, setPosts] = useState([]);
+  const [composing, setComposing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPosts({ placeId: place.id }).then((result) => { if (!cancelled) setPosts(result); });
+    return () => { cancelled = true; };
+  }, [place.id]);
+
+  const submitPost = async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const file = form.get('photo');
+    const created = await addPost({
+      photo: file?.size ? URL.createObjectURL(file) : undefined,
+      text: form.get('memory'),
+      location: place.id,
+      role: 'tourist',
+      consent: form.get('consent') === 'on',
+    });
+    setPosts((current) => [created, ...current]);
+    setComposing(false);
+    event.currentTarget.reset();
+    onPostAdded?.();
+  };
+
+  return <div className="place-posts-sheet page-enter">
+    <div className="sheet-handle" />
+    <button className="close" onClick={onClose}>×</button>
+    {place.image?.url && <div className="place-hero"><img src={place.image.url} alt={place.image.alt || place.nameZh} />{place.image.credit && <small>© {place.image.credit}</small>}</div>}
+    <span className="eyebrow">COMMUNITY MEMORY · 社区记忆</span>
+    <h2>{place.nameZh} <small>{place.nameEn}</small></h2>
+    {posts.length === 0 ? (
+      <p className="posts-empty">这里还没有社区投稿，成为第一个留下脚印的人。</p>
+    ) : (
+      <div className="place-posts-list">
+        {posts.map((post) => <article className="post-card" key={post.id}><div className="post-copy"><small>⌖ {post.place}</small><p>{post.text}</p><b>{post.author}</b></div></article>)}
+      </div>
+    )}
+    {composing ? (
+      <form className="compose-inline" onSubmit={submitPost}>
+        <label className="inline-label">你的社区记忆
+          <textarea name="memory" required placeholder="这个地方对你意味着什么？" />
+        </label>
+        <label className="upload">＋ Add a photo <input type="file" name="photo" accept="image/*" /></label>
+        <label className="consent-row"><input type="checkbox" name="consent" /> Allow this post to be considered for AI curation</label>
+        <div className="inline-actions">
+          <button type="button" className="secondary" onClick={() => setComposing(false)}>取消</button>
+          <button className="primary" type="submit">投稿</button>
+        </div>
+      </form>
+    ) : (
+      <button className="primary wide" onClick={() => setComposing(true)}>＋ Post here</button>
+    )}
+  </div>;
+}
+
+function DemoNarration({ segment, profile }) {
+  const placeId = segment?.to?.id;
+  const distanceM = segment ? Math.max(1, Math.round(segment.to.progress - segment.from.progress)) : 0;
+  const fastSec = Math.max(1, Math.round(distanceM / (45 / 3.6)));   // 左：快 + 建筑
+  const slowSec = Math.max(1, Math.round(distanceM / (10 / 3.6)));   // 右：慢 + 美食
+  const normalSec = Math.max(1, Math.round(distanceM / (30 / 3.6))); // 试乘实际车速，用于中文单条讲解
+  const [language, setLanguage] = useState('en');
+  const [collapsed, setCollapsed] = useState(false);
+  const [left, setLeft] = useState(null);
+  const [right, setRight] = useState(null);
+  const [single, setSingle] = useState(null); // 普通话/粤语：单条讲解（无对比）
+  const [playing, setPlaying] = useState(null); // 'left' | 'right' | 'single' | null
+
+  const archProfile = useMemo(() => ({ architecture: 1, culture: 0, food: 0, nature: 0 }), []);
+  const foodProfile = useMemo(() => ({ architecture: 0, culture: 0, food: 1, nature: 0 }), []);
+
+  const narrator = useMemo(() => createNarrator({
+    onStateChange: (s) => { if (s.state === 'ended' || s.state === 'idle') setPlaying(null); },
+  }), []);
+  useEffect(() => () => narrator.stop(), [narrator]);
+
+  // 切语言先停掉旧播报，避免和新内容重叠
+  useEffect(() => { narrator.stop(); setPlaying(null); }, [language, narrator]);
+
+  // 按语言取内容：英语=左右对比；普通话/粤语=单条（用 C 的译文）
+  useEffect(() => {
+    if (!placeId || !distanceM) { setLeft(null); setRight(null); setSingle(null); return; }
+    let cancelled = false;
+    if (language === 'en') {
+      const common = { placeId, track: 'official', audience: 'visitor', language: 'en', maxHooks: 1 };
+      Promise.all([
+        getStoryForJourney({ ...common, remainingTimeSec: fastSec, interestProfile: archProfile }),
+        getStoryForJourney({ ...common, remainingTimeSec: slowSec, interestProfile: foodProfile }),
+      ]).then(([l, r]) => { if (!cancelled) { setLeft({ ...l, sec: fastSec }); setRight({ ...r, sec: slowSec }); } });
+    } else {
+      getStoryForJourney({
+        placeId,
+        track: 'official',
+        remainingTimeSec: normalSec,
+        interests: profile?.interests || [],
+        interestProfile: profile?.interestProfile,
+        audience: profile?.identity || 'visitor',
+        language,
+      }).then((s) => { if (!cancelled) setSingle({ ...s, sec: fastSec }); });
+    }
+    return () => { cancelled = true; };
+  }, [placeId, distanceM, fastSec, language, archProfile, foodProfile, profile]);
+
+  // 试乘：每到新站自动播（英语播左列快+建筑；中文播单条）
+  const autoPlayedRef = useRef(null);
+  useEffect(() => {
+    const story = language === 'en' ? left?.story : single?.story;
+    if (!story) return;
+    const key = `${story.placeId}.${language}`;
+    if (autoPlayedRef.current === key) return;
+    autoPlayedRef.current = key;
+    narrator.play(story, language);
+    setPlaying(language === 'en' ? 'left' : 'single');
+  }, [left, single, language, narrator]);
+
+  if (!placeId) return null;
+
+  const activeStory = language === 'en' ? left?.story : single?.story;
+  const activeSide = language === 'en' ? 'left' : 'single';
+
+  const playSide = (side, result) => {
+    if (!result?.story) return;
+    if (playing === side) { narrator.stop(); setPlaying(null); return; }
+    narrator.play(result.story, language);
+    setPlaying(side);
+  };
+
+  const togglePlay = () => {
+    if (!activeStory) return;
+    if (playing) { narrator.stop(); setPlaying(null); return; }
+    narrator.play(activeStory, language);
+    setPlaying(activeSide);
+  };
+
+  const toggleCollapse = () => setCollapsed((c) => !c);
+
+  const renderCol = (result, side, tone) => (
+    <div className={`compare-col ${tone}`}>
+      <div className="compare-col-head">
+        <b>{side === 'left' ? '🚀 Fast · 45 km/h' : '🐢 Slow · 10 km/h'}</b>
+        <span className="compare-persona">{side === 'left' ? '👤 Architecture lover' : '👤 Food lover'}</span>
+      </div>
+      <div className="compare-metrics">
+        <span>{distanceM} m · {result ? `${result.sec}s to next stop` : '…'}</span>
+        <em>{result ? `${(result.story?.length || '').toUpperCase()} · ${result.story?.durationSec ?? '…'}s audio` : '…'}</em>
+      </div>
+      {result?.story?.hookText && <div className={`compare-hook ${tone}`}><small>🎯 INTEREST-INJECTED</small>{result.story.hookText}</div>}
+      <p className="compare-base">{result?.story?.baseText || 'Preparing…'}</p>
+      <button className={`compare-play ${playing === side ? 'is-on' : ''}`} onClick={() => playSide(side, result)} disabled={!result}>
+        {playing === side ? 'Ⅱ Stop' : '▶ Listen'}
+      </button>
+    </div>
+  );
+
+  if (collapsed) {
+    return <div className="speed-compare page-enter collapsed" onClick={toggleCollapse}>
+      <div className="player-mini-row">
+        <button className="play mini" onClick={(e) => { e.stopPropagation(); togglePlay(); }} disabled={!activeStory}>{playing ? 'Ⅱ' : '▶'}</button>
+        <div className="player-mini-title">
+          <b>{segment.to.nameZh} · {segment.to.nameEn}</b>
+          <small>{language === 'en' ? 'English · Speed comparison' : language === 'zh-HK' ? 'Cantonese 粤语' : 'Mandarin 普通话'}</small>
+        </div>
+        <button className="mini-icon" title="展开" onClick={(e) => { e.stopPropagation(); toggleCollapse(); }}>⌃</button>
+      </div>
+    </div>;
+  }
+
+  return <div className="speed-compare page-enter">
+    <div className="sheet-handle" />
+    <button className="sheet-collapse" onClick={toggleCollapse} title="收起讲解">⌄</button>
+    <div className="language-toggle">
+      <button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>English</button>
+      <button className={language === 'zh-HK' ? 'active' : ''} onClick={() => setLanguage('zh-HK')}>Cantonese 粤语</button>
+      <button className={language === 'zh-CN' ? 'active' : ''} onClick={() => setLanguage('zh-CN')}>Mandarin 普通话</button>
+    </div>
+    <span className="eyebrow">AI ADAPTATION · approaching {segment.to.nameZh} ({segment.to.nameEn})</span>
+    {language === 'en' ? (
+      <div className="compare-cols">
+        {renderCol(left, 'left', 'fast')}
+        {renderCol(right, 'right', 'slow')}
+      </div>
+    ) : (
+      <div className="compare-single">
+        <p className="compare-base">{single?.story?.text || '正在加载讲解…'}</p>
+        <button className={`compare-play ${playing === 'single' ? 'is-on' : ''}`} onClick={() => playSide('single', single)} disabled={!single}>
+          {playing === 'single' ? 'Ⅱ 停止' : '▶ 播放'}
+        </button>
+      </div>
+    )}
+    {language === 'en' && <p className="compare-note">Same stop, two riders: speed sets the length, interest shapes the detail.</p>}
+  </div>;
+}
+
+function MapScreen({ profile, onPostAdded }) {
   const [destination, setDestination] = useState('');
   const [route, setRoute] = useState(null);
   const [playerOpen, setPlayerOpen] = useState(false);
@@ -247,6 +444,11 @@ function MapScreen({ profile }) {
   const [currentPlaceId, setCurrentPlaceId] = useState(null);
   const [timeToNextSec, setTimeToNextSec] = useState(null);
   const [chromeCollapsed, setChromeCollapsed] = useState(false);
+  const [postsPlace, setPostsPlace] = useState(null);
+  const [mode, setMode] = useState('bus');
+  const [nearbyPlace, setNearbyPlace] = useState(null);
+  const [segment, setSegment] = useState(null);
+  const [demoing, setDemoing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -267,13 +469,27 @@ function MapScreen({ profile }) {
 
   const handleArrive = (place, nextSec) => {
     if (!place?.id) return;
+    if (demoing) return; // 试乘：由速度对比卡连播，不再打开讲解弹窗
     setCurrentPlaceId(place.id);
     setTimeToNextSec(nextSec ?? null);
     setPlayerOpen(true);
   };
 
+  // 试乘开始即收起讲解弹窗，避免与速度对比卡同时播报
+  useEffect(() => { if (demoing) setPlayerOpen(false); }, [demoing]);
+
   return <section className={`screen map-screen page-enter ${chromeCollapsed ? 'chrome-collapsed' : ''}`}>
-    <div className="map-canvas"><MapView route={route} onArrive={handleArrive} /></div>
+    <div className="map-canvas"><MapView route={route} mode={mode} onArrive={handleArrive} onSelectPlace={setPostsPlace} onSegmentChange={setSegment} onNearbyPlace={setNearbyPlace} onDemoingChange={setDemoing} /></div>
+    <div className="mode-switch">
+      <button className={mode === 'bus' ? 'active' : ''} onClick={() => setMode('bus')}>Bus Tour</button>
+      <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>Walk &amp; Community</button>
+    </div>
+    {nearbyPlace && (
+      <button className="nearby-toast" onClick={() => setPostsPlace(nearbyPlace)}>
+        <b>📍 你已到 {nearbyPlace.nameZh}</b>
+        <span>点击查看社区 · {nearbyPlace.nameEn}</span>
+      </button>
+    )}
     {chromeCollapsed ? (
       <button className="chrome-mini" onClick={() => setChromeCollapsed(false)}>
         <span className="brand-mark chrome-mini-mark">LR</span><b>展开</b>
@@ -292,6 +508,8 @@ function MapScreen({ profile }) {
       <button className="primary wide" onClick={() => setPlayerOpen(true)}>Begin Route <span>▶</span></button>
     </div>}
     {playerOpen && <PlayerSheet profile={profile} placeId={currentPlaceId} remainingTimeSec={timeToNextSec} onClose={() => setPlayerOpen(false)} />}
+    {segment && mode === 'bus' && demoing && <DemoNarration segment={segment} profile={profile} />}
+    {postsPlace && <PlacePostsSheet place={postsPlace} onClose={() => setPostsPlace(null)} onPostAdded={onPostAdded} />}
   </section>;
 }
 
@@ -404,7 +622,7 @@ function DeletePostButton({ onDelete }) {
   </div>;
 }
 
-function CommunityScreen({ profile }) {
+function CommunityScreen({ profile, onPostAdded }) {
   const [filter, setFilter] = useState('all');
   const [posts, setPosts] = useState(mockPosts);
   const [composer, setComposer] = useState(false);
@@ -444,6 +662,7 @@ function CommunityScreen({ profile }) {
         ? 'Posted to Community · pending human review'
         : 'Saved privately · available in Private Journal');
       setComposer(false);
+      onPostAdded?.();
     } catch (error) {
       setSavedNotice(`Photo not saved · ${error.message}`);
     }
@@ -562,7 +781,25 @@ export default function App() {
   const [ethicsConsent, setEthicsConsent] = useState(null);
   const [profile, setProfile] = useState(null);
   const [active, setActive] = useState('map');
-  const content = useMemo(() => ({ map: <MapScreen profile={profile} />, community: <CommunityScreen profile={profile} />, journal: <JournalScreen profile={profile} /> })[active], [active, profile]);
+  const [myPosts, setMyPosts] = useState([]);
+
+  const refreshMyPosts = async () => { setMyPosts(await getMyPosts()); };
+
+  // 四项兴趣画像：初始所选兴趣给基础权重，社区投稿按关键词加权 → 归一化比例
+  const interestProfile = useMemo(
+    () => analyzeInterestProfile({ seedInterests: profile?.interests || [], posts: myPosts }),
+    [profile?.interests, myPosts],
+  );
+  const fullProfile = useMemo(
+    () => (profile ? { ...profile, interestProfile } : null),
+    [profile, interestProfile],
+  );
+
+  const content = useMemo(() => ({
+    map: <MapScreen profile={fullProfile} onPostAdded={refreshMyPosts} />,
+    community: <CommunityScreen profile={fullProfile} onPostAdded={refreshMyPosts} />,
+    journal: <JournalScreen profile={fullProfile} />,
+  })[active], [active, fullProfile]);
 
   if (!ethicsConsent) return <EthicsConsent onAccept={setEthicsConsent} />;
   if (!profile) return <Onboarding onFinish={(nextProfile) => setProfile({ ...nextProfile, ethicsConsent })} />;

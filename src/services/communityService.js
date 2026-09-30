@@ -27,11 +27,12 @@ async function migratePhotoTreatment(post) {
   return migrated;
 }
 
-export async function getPosts({ filter = 'all', bounds } = {}) {
+export async function getPosts({ filter = 'all', bounds, placeId } = {}) {
   const savedPosts = await Promise.all((await listMemoryPosts()).map(migratePhotoTreatment));
   const communityPosts = savedPosts.filter((post) => post.visibility === 'community');
   const filtered = [...communityPosts, ...mockPosts].filter((post) => {
     if (filter !== 'all' && post.kind !== filter) return false;
+    if (placeId && post.placeId !== placeId) return false;
     const place = getPlaceById(post.placeId);
     return !place || isPointInBounds(place, bounds);
   });

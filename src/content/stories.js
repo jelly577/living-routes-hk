@@ -84,10 +84,22 @@ export const storiesByPlace = {
   // ───────────────────────── 1. Central Market ─────────────────────────
   'central-market': {
     official: {
+      short: story({
+        placeId: 'central-market', track: 'official', length: 'short',
+        title: 'Central Market in Brief',
+        text: 'Coming up is Central Market, the fourth market on this site, completed in 1939 in the Streamline Moderne style. It closed as a market in 2003 and reopened in 2021.',
+        sourceUrls: [SRC.amoCentralMarket, SRC.uraCentralMarket],
+      }),
       medium: story({
         placeId: 'central-market', track: 'official', length: 'medium',
         title: 'Central Market: Four Markets on One Site',
         text: 'Coming up on Des Voeux Road Central is Central Market. Chinese residents were already running a market in this area as early as 1842. The building you see today is the fourth market here, completed in 1939 in the Streamline Moderne style. Look for its long, slim horizontal lines. It stopped working as a market in March 2003. After restoration by the Urban Renewal Authority, it reopened in phases from August 2021, with a public atrium of about one thousand square metres at its heart.',
+        sourceUrls: [SRC.amoCentralMarket, SRC.devbCentralMarket, SRC.uraCentralMarket, SRC.hkfpCentralMarket],
+      }),
+      long: story({
+        placeId: 'central-market', track: 'official', length: 'long',
+        title: 'Central Market: Four Markets, One Site',
+        text: 'Coming up on Des Voeux Road Central is Central Market. Chinese residents were already running a market in this area as early as 1842, which makes this one of the oldest trading spots in the city. The building you see today is the fourth market to stand on this site. It was completed in 1939 in the Streamline Moderne style, with long, slim horizontal lines and rounded corners typical of the period. For more than sixty years it served as a busy wet market, until it stopped trading in March 2003. After a long debate over its future, the Urban Renewal Authority restored the building, keeping its historic exterior while opening the inside as public space. It reopened in phases from August 2021, and at its heart is a public atrium of about one thousand square metres. As we pass, look for the long horizontal lines of the facade.',
         sourceUrls: [SRC.amoCentralMarket, SRC.devbCentralMarket, SRC.uraCentralMarket, SRC.hkfpCentralMarket],
       }),
     },
@@ -104,11 +116,23 @@ export const storiesByPlace = {
   // ─────────────────────── 2. Court of Final Appeal ───────────────────────
   'court-of-final-appeal': {
     official: {
+      short: story({
+        placeId: 'court-of-final-appeal', track: 'official', length: 'short',
+        title: 'Court of Final Appeal in Brief',
+        text: 'Look up at the granite neo-classical building beside Statue Square. It opened in 1912 as the Supreme Court and has housed the Court of Final Appeal since 2015.',
+        sourceUrls: [SRC.amoCfa],
+      }),
       medium: story({
         placeId: 'court-of-final-appeal', track: 'official', length: 'medium',
         title: 'Court of Final Appeal: Justice in a Blindfold',
         text: 'Look up at the granite building beside Statue Square. On its central pediment stands Themis, the blindfolded Greek goddess of justice. This neo-classical building, with its tall Ionic columns, opened in January 1912 as the Supreme Court. It sits on reclaimed land, supported by hundreds of piles made from Chinese fir trees. From 1985 to 2011 it housed the Legislative Council, and since 2015 it has been home to the Court of Final Appeal.',
         sourceUrls: [SRC.amoCfa],
+      }),
+      long: story({
+        placeId: 'court-of-final-appeal', track: 'official', length: 'long',
+        title: 'Court of Final Appeal: Justice in a Blindfold',
+        text: 'Look up at the granite building beside Statue Square. On its central pediment stands Themis, the blindfolded Greek goddess of justice. This neo-classical building, with its tall Ionic columns and granite walls, opened in January 1912 as the Supreme Court. It stands on reclaimed land, supported by hundreds of piles made from Chinese fir trees. From 1985 to 2011 it housed the Legislative Council, and since 2015 it has been home to the Court of Final Appeal, the highest court in Hong Kong. Just across the square, the same granite and columns have watched the city change for more than a century.',
+        sourceUrls: [SRC.amoCfa, SRC.wikiCfa, SRC.wikiStatueSquare],
       }),
     },
     civilian: {
@@ -213,11 +237,23 @@ export const storiesByPlace = {
   // Content warning: fatal fire. Keep wording calm and respectful.
   'happy-valley-racecourse': {
     official: {
+      short: story({
+        placeId: 'happy-valley-racecourse', track: 'official', length: 'short',
+        title: 'Race Course Fire Memorial in Brief',
+        text: 'We are approaching the Race Course Fire Memorial, built in 1922 to remember the more than six hundred people who died in a fire on Derby Day, 1918.',
+        sourceUrls: [SRC.amoFireMemorial],
+      }),
       medium: story({
         placeId: 'happy-valley-racecourse', track: 'official', length: 'medium',
         title: 'Happy Valley: The Race Course Fire Memorial',
         text: 'We are approaching Happy Valley Racecourse. On the twenty sixth of February, 1918, during the annual Derby Day races, temporary bamboo stands collapsed and caught fire. More than six hundred people, of many nationalities and backgrounds, lost their lives. Tung Wah Hospital led relief work. In 1922, a memorial funded by public donations was built at So Kon Po, above today\'s Hong Kong Stadium. It blends Chinese and Western design, and its central arch carries the characters for fortune, richness and long life. It was declared a monument in 2015.',
         sourceUrls: [SRC.amoFireMemorial, SRC.twghsFireMemorial],
+      }),
+      long: story({
+        placeId: 'happy-valley-racecourse', track: 'official', length: 'long',
+        title: 'Happy Valley: Remembering the Fire of 1918',
+        text: 'We are approaching Happy Valley Racecourse. On the twenty sixth of February 1918, during the annual Derby Day races, the temporary bamboo stands collapsed and caught fire. More than six hundred people, of many nationalities and backgrounds, lost their lives. Tung Wah Hospital led the relief work, helping to recover and care for the victims. Four years later, in 1922, a memorial funded entirely by public donations was built at So Kon Po, above today\'s Hong Kong Stadium. It blends Chinese and Western design: green-tiled roofs sit beside classical granite niches, and its central arch carries the Chinese characters for fortune, richness and long life. The memorial was declared a monument in 2015. As we pass, you may wish to take a quiet moment.',
+        sourceUrls: [SRC.amoFireMemorial, SRC.twghsFireMemorial, SRC.scmpFire],
       }),
     },
     civilian: {
