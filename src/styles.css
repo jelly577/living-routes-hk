@@ -244,3 +244,16 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .compare-single .compare-base { font-size: 13px; line-height: 1.6; }
 .speed-compare .sheet-collapse { right: 16px; top: 14px; }
 .speed-compare.collapsed { left: 16px; right: 16px; bottom: 92px; max-height: none; overflow: hidden; padding: 8px 14px; border-radius: 18px; }
+
+/* Single story stream: interest theme label replaces the three track tabs */
+.theme-chip {
+  display: inline-block;
+  margin: 4px 0 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #1f3a33;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}

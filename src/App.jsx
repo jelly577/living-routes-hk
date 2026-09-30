@@ -79,7 +79,7 @@ function EthicsConsent({ onAccept }) {
 
 function Onboarding({ onFinish }) {
   const [identity, setIdentity] = useState('visitor');
-  const [interests, setInterests] = useState(['Architecture', 'Culture']);
+  const [interests, setInterests] = useState(['Architecture', 'History']);
   const selectedIdentity = identityOptions.find((item) => item.value === identity);
 
   const toggle = (value) => setInterests((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
@@ -129,7 +129,8 @@ function BottomNav({ active, setActive }) {
 }
 
 function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
-  const [mode, setMode] = useState('official');
+  // One story stream per stop (themed by the user's interests); community voices live on the map/Community tab.
+  const mode = 'official';
   const [language, setLanguage] = useState('en');
   const [progress, setProgress] = useState(0);
   const [storyResult, setStoryResult] = useState(null);
@@ -143,15 +144,6 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
   const lastAutoPlayedRef = useRef(null);
 
   useEffect(() => () => narrator.stop(), [narrator]);
-
-  const changeMode = (nextMode) => {
-    if (nextMode === mode) return;
-    narrator.stop();
-    setProgress(0);
-    const labels = { official: 'Heritage Facts', civilian: 'Local Voices', culture: 'Culture Bites' };
-    setTrackNotice(`Switched to ${labels[nextMode]} · press play when ready`);
-    setMode(nextMode);
-  };
 
   const changeLanguage = (nextLanguage) => {
     if (nextLanguage === language) return;
@@ -220,13 +212,9 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
         </div>
         <button className="sheet-collapse" onClick={toggleCollapse} title="收起讲解">⌄</button>
         <button className="close" onClick={onClose}>×</button>
-        <div className="mode-toggle">
-          <button className={mode === 'official' ? 'active' : ''} onClick={() => changeMode('official')}>Heritage Facts</button>
-          <button className={mode === 'civilian' ? 'active' : ''} onClick={() => changeMode('civilian')}>Local Voices</button>
-          <button className={mode === 'culture' ? 'active' : ''} onClick={() => changeMode('culture')}>Culture Bites</button>
-        </div>
+        {storyResult?.story.themeLabel && <div className="theme-chip">For you · {storyResult.story.themeLabel}</div>}
         <div className="language-toggle"><button className={language === 'en' ? 'active' : ''} onClick={() => changeLanguage('en')}>English</button><button className={language === 'zh-HK' ? 'active' : ''} onClick={() => changeLanguage('zh-HK')}>Cantonese 粤语</button><button className={language === 'zh-CN' ? 'active' : ''} onClick={() => changeLanguage('zh-CN')}>Mandarin 普通话</button></div>
-        <div className="source-line">{mode === 'official' ? '✓ Source-grounded · official source attached' : `✦ ${storyResult?.story.disclosure || (mode === 'culture' ? 'Curated from public sources' : 'Demo civilian sample · not a verified resident submission')}`}</div>
+        <div className="source-line">✓ Source-grounded · every fact from the sources below</div>
         {storyResult?.story.sourceUrls?.length > 0 && <div className="source-links">{storyResult.story.sourceUrls.map((url, index) => <a href={url} target="_blank" rel="noreferrer" key={url}>Source {index + 1}</a>)}</div>}
         <p className="story-preview">{storyResult?.story.text || 'Loading story text…'}</p>
         <div className="player-row">

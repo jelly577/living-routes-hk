@@ -9,6 +9,7 @@
 import { localizeStory } from '../content/stories.js';
 import { INTEREST_KEYS, INTEREST_TRACK, interestHooks } from '../content/interestHooks.js';
 import { rankInterests } from './profileService.js';
+import { pickTheme, getThemedStory } from '../content/themedStories.js';
 
 const LENGTHS = ['short', 'medium', 'long'];
 const SPEED = { en: 2.5, 'zh-CN': 4.2, 'zh-HK': 4.5 }; // same estimate as stories.js
@@ -18,6 +19,7 @@ const MARGIN_SEC = 0; // raise to leave room before the bus reaches the stop
 // culture/nature 先落到最接近的现成句，等 C 补专用内容再替换。
 const HOOK_KEY = {
   architecture: 'architecture',
+  history: 'official-history',
   culture: 'official-history',
   food: 'food',
   nature: 'official-history',
@@ -44,6 +46,30 @@ export function recommendTrack(interests = []) {
 }
 
 export function personalizeStory({ place, track = 'official', remainingTimeSec = 45, interests = [], interestProfile = null, language = 'en', maxHooks = 2 }) {
+  // 1. Themed narration first: one story per stop, written for the user's interests
+  //    (e.g. Architecture + History). Only on the default track, and only if the user chose it.
+  if (track === 'official') {
+    const chosen = normalizeInterests(interests);
+    const theme = pickTheme(chosen);
+    const themedStory = theme && getThemedStory({ placeId: place.id, theme, language, remainingTimeSec });
+    if (themedStory) {
+      return {
+        story: { ...themedStory, interestFocus: theme, baseText: themedStory.text, hookText: null },
+        meta: {
+          servedLength: themedStory.length,
+          availableLengths: ['short', 'medium'],
+          fitsRemainingTime: themedStory.durationSec <= remainingTimeSec,
+          interestFocus: theme,
+          hookApplied: false,
+          theme,
+          recommendedTrack: 'official',
+          method: 'interest-themed script from human-reviewed facts',
+        },
+      };
+    }
+  }
+
+  // 2. Fallback: reviewed official script + 1–2 interest lead-in sentences.
   const tracks = place.stories[track];
   // 普通话/粤语只用 C 已翻译的长度，避免缺翻译时把英文正文塞进中文播报
   let available = LENGTHS.filter((l) => tracks[l] && (language === 'en' || tracks[l].localized?.[language]));
