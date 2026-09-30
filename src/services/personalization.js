@@ -8,10 +8,20 @@
 
 import { localizeStory } from '../content/stories.js';
 import { INTEREST_KEYS, INTEREST_TRACK, interestHooks } from '../content/interestHooks.js';
+import { rankInterests } from './profileService.js';
 
 const LENGTHS = ['short', 'medium', 'long'];
 const SPEED = { en: 2.5, 'zh-CN': 4.2, 'zh-HK': 4.5 }; // same estimate as stories.js
 const MARGIN_SEC = 0; // raise to leave room before the bus reaches the stop
+
+// 四项兴趣 → 每地已有的 hook 句子。architecture/food 已有专用句；
+// culture/nature 先落到最接近的现成句，等 C 补专用内容再替换。
+const HOOK_KEY = {
+  architecture: 'architecture',
+  culture: 'official-history',
+  food: 'food',
+  nature: 'official-history',
+};
 
 const estimateSec = (text, language) => {
   const units = language === 'en'
@@ -33,9 +43,11 @@ export function recommendTrack(interests = []) {
   );
 }
 
-export function personalizeStory({ place, track = 'official', remainingTimeSec = 45, interests = [], language = 'en' }) {
+export function personalizeStory({ place, track = 'official', remainingTimeSec = 45, interests = [], interestProfile = null, language = 'en', maxHooks = 2 }) {
   const tracks = place.stories[track];
-  const available = LENGTHS.filter((l) => tracks[l]);
+  // 普通话/粤语只用 C 已翻译的长度，避免缺翻译时把英文正文塞进中文播报
+  let available = LENGTHS.filter((l) => tracks[l] && (language === 'en' || tracks[l].localized?.[language]));
+  if (!available.length) available = LENGTHS.filter((l) => tracks[l]); // 兜底：该语言完全无翻译时退回英语档位
   const budget = remainingTimeSec - MARGIN_SEC;
   const localized = Object.fromEntries(available.map((l) => [l, localizeStory(tracks[l], language)]));
 
@@ -43,31 +55,53 @@ export function personalizeStory({ place, track = 'official', remainingTimeSec =
   const servedLength = fitting || available[0];
   const base = localized[servedLength];
 
-  const focus = normalizeInterests(interests)[0] || null;
-  const hook = focus ? interestHooks[place.id]?.[focus]?.[language] : null;
+  // 兴趣注入：按画像比例取最高项，预算允许再补次高项（至少 1 句、最好 2 句）。
+  const ranked = interestProfile ? rankInterests(interestProfile) : normalizeInterests(interests);
+  const hooks = [];
+  for (const key of ranked) {
+    const hookKey = HOOK_KEY[key] || key;
+    const sentence = interestHooks[place.id]?.[hookKey]?.[language];
+    if (sentence && !hooks.includes(sentence)) hooks.push(sentence);
+    if (hooks.length >= maxHooks) break;
+  }
+
   const joiner = language === 'en' ? ' ' : '';
   let text = base.text;
   let durationSec = base.durationSec;
-  let hookApplied = false;
-  if (hook) {
-    const withHook = `${hook}${joiner}${base.text}`;
-    const withHookSec = estimateSec(withHook, language);
-    // Short slots stay short: only add the lead-in if it still fits.
-    if (withHookSec <= budget) {
-      text = withHook;
-      durationSec = withHookSec;
-      hookApplied = true;
+  let interestFocus = null;
+  let appliedHooks = [];
+
+  if (hooks.length) {
+    const combined = `${hooks.join(joiner)}${joiner}${base.text}`;
+    const combinedSec = estimateSec(combined, language);
+    // 预算允许放尽量多句，放不下就逐句减到一句。
+    let chosen = hooks.length;
+    while (chosen > 1 && estimateSec(`${hooks.slice(0, chosen).join(joiner)}${joiner}${base.text}`, language) > budget) chosen--;
+    if (estimateSec(`${hooks.slice(0, chosen).join(joiner)}${joiner}${base.text}`, language) <= budget) {
+      text = `${hooks.slice(0, chosen).join(joiner)}${joiner}${base.text}`;
+      durationSec = estimateSec(text, language);
+      interestFocus = ranked[0];
+      appliedHooks = hooks.slice(0, chosen);
     }
   }
 
   return {
-    story: { ...base, text, durationSec, language, length: servedLength, interestFocus: hookApplied ? focus : null },
+    story: {
+      ...base,
+      text,
+      durationSec,
+      language,
+      length: servedLength,
+      interestFocus,
+      baseText: base.text,
+      hookText: appliedHooks.join(joiner) || null,
+    },
     meta: {
       servedLength,
       availableLengths: available,
       fitsRemainingTime: durationSec <= budget,
-      interestFocus: focus,
-      hookApplied,
+      interestFocus,
+      hookApplied: Boolean(interestFocus),
       recommendedTrack: recommendTrack(interests),
       method: 'rule-based selection from human-reviewed scripts',
     },

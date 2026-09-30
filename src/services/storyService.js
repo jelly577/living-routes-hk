@@ -24,8 +24,10 @@ export async function getStoryForJourney({
   track = 'official',
   remainingTimeSec = 45,
   interests = [],
+  interestProfile = null,
   audience = 'visitor',
   language = 'en',
+  maxHooks = 2,
 } = {}) {
   const place = getPlaceById(placeId);
   if (!place) throw new Error(`Unknown placeId: ${placeId}`);
@@ -46,7 +48,7 @@ export async function getStoryForJourney({
   if (!place.stories[track]) throw new Error(`Unknown story track: ${track}`);
 
   // C: personalisation over reviewed scripts (time fit + interest lead-in + language).
-  const { story, meta } = personalizeStory({ place, track, remainingTimeSec, interests, language });
+  const { story, meta } = personalizeStory({ place, track, remainingTimeSec, interests, interestProfile, language, maxHooks });
   return simulateNetwork({
     place,
     track,

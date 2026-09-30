@@ -31,6 +31,11 @@ export const interestHooks = {
       'zh-CN': '建筑视角：留意1939年流线型现代主义外墙上修长的水平线条。',
       'zh-HK': '建築角度：留意吓1939年流線型現代主義外牆嘅修長橫線條。',
     },
+    food: {
+      en: 'Food focus: for decades this market fed Central — fresh food traded here until it closed in 2003.',
+      'zh-CN': '美食视角：这座街市几十年来为中西区供应新鲜食材，直到2003年关闭。',
+      'zh-HK': '美食角度：呢個街市幾十年嚟為中西區供應新鮮食材，直到2003年關閉。',
+    },
     'local-life': {
       en: 'Everyday life focus: this building worked as a market until March 2003.',
       'zh-CN': '生活视角：这座建筑一直作为街市运作，直到2003年3月。',
@@ -52,6 +57,11 @@ export const interestHooks = {
       en: 'Architecture focus: note the tall Ionic columns and granite walls, standing on hundreds of Chinese fir piles.',
       'zh-CN': '建筑视角：留意高大的爱奥尼式柱和花岗岩外墙，整座建筑立在数百根杉木桩上。',
       'zh-HK': '建築角度：留意吓高大嘅愛奧尼式柱同花崗岩外牆，成座建築企喺幾百條杉木樁上面。',
+    },
+    food: {
+      en: 'Food focus: every Sunday, the square beside the court fills with families sharing home-cooked meals.',
+      'zh-CN': '美食视角：每逢星期日，法院旁的广场上，家庭们聚在一起分享家常菜。',
+      'zh-HK': '美食角度：每逢星期日，法院隔籬嘅廣場上，家庭們聚埋一齊分享家常菜。',
     },
     'local-life': {
       en: 'Everyday life focus: on Sundays, the square beside this court becomes a gathering place for domestic workers.',
@@ -75,6 +85,11 @@ export const interestHooks = {
       'zh-CN': '建筑视角：新发展项目里保留了皇后大道东上三幢战前唐楼。',
       'zh-HK': '建築角度：新發展項目入面保留咗皇后大道東三幢戰前唐樓。',
     },
+    food: {
+      en: 'Food focus: around Wedding Card Street, Wan Chai\'s noodle shops and dai pai dongs fed generations of neighbours.',
+      'zh-CN': '美食视角：喜帖街一带，湾仔的面档和大排档养活了几代街坊。',
+      'zh-HK': '美食角度：喜帖街一帶，灣仔嘅麵檔同大牌檔養活咗幾代街坊。',
+    },
     'local-life': {
       en: 'Everyday life focus: for decades, people from all over Hong Kong came here to order their wedding cards.',
       'zh-CN': '生活视角：几十年来，全港各地的人都来这里订造喜帖。',
@@ -96,6 +111,11 @@ export const interestHooks = {
       en: 'Architecture focus: look for the cantilevered balconies with ornamental ironwork, and the timber stairs.',
       'zh-CN': '建筑视角：留意带装饰铁栏的悬臂式露台和木楼梯。',
       'zh-HK': '建築角度：留意吓有裝飾鐵欄嘅懸臂式露台同木樓梯。',
+    },
+    food: {
+      en: 'Food focus: families on each floor once shared a single kitchen, cooking side by side.',
+      'zh-CN': '美食视角：以前每层住户共用一个厨房，一起煮饭。',
+      'zh-HK': '美食角度：以前每層住戶共用一個廚房，一齊煮飯。',
     },
     'local-life': {
       en: 'Everyday life focus: families on each floor once shared a single kitchen.',
@@ -119,6 +139,11 @@ export const interestHooks = {
       en: 'Architecture focus: the 1922 memorial blends Chinese and Western design, from green-tiled roofs to classical granite niches.',
       'zh-CN': '建筑视角：1922年的纪念碑融合中西设计，有绿色琉璃瓦屋顶，也有古典式花岗岩壁龛。',
       'zh-HK': '建築角度：1922年嘅紀念碑融合中西設計，有綠色琉璃瓦屋頂，亦有古典式花崗岩壁龕。',
+    },
+    food: {
+      en: 'Food focus: on race days, food hawkers once lined the road outside Happy Valley Racecourse.',
+      'zh-CN': '美食视角：以前赛马日，跑马地马场外的路边摆满了小食摊。',
+      'zh-HK': '美食角度：以前賽馬日，跑馬地馬場外嘅路邊擺滿咗小食檔。',
     },
     'local-life': {
       en: 'Everyday life focus: in 1918, more than ten thousand people came to watch the Lunar New Year races.',

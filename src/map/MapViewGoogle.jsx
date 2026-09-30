@@ -6,6 +6,7 @@ import { segmentThemes } from './segmentThemes.js';
 const ROUTE_COLOR = '#c4502f';
 const ON_ROUTE_MAX_M = 600; // 距路线超过该距离则视为「不在车上」，不显示讲解
 const BUS_SPEED_MPS = 5;    // 市区巴士约 18 km/h，用于把站间距换算成讲解时长
+const DEMO_SPEED_KMH = 30;  // 试乘自动行驶车速（固定；快慢对比改由对比卡展示）
 
 function pinIcon(gmaps, order, active) {
   const fill = active ? '#c4502f' : '#173e31';
@@ -81,7 +82,7 @@ function buildJourney(path, storyPoints, gmaps) {
   return { cum, nearest, stations, segments };
 }
 
-export default function MapViewGoogle({ route, onFail, onArrive }) {
+export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, mode = 'bus', onSegmentChange, onNearbyPlace, onDemoingChange }) {
   const containerRef = useRef(null);
   const gmapsRef = useRef(null);
   const mapRef = useRef(null);
@@ -98,6 +99,11 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
   const arrivedRef = useRef(null);
   const announcedRef = useRef(null); // 已触发自动讲解的景点 id（避免拖动时重复播）
   const revealedRef = useRef(new Set()); // 已「冒出」的景点 id
+  const nearbyRef = useRef(null);        // 步行模式当前感应到的 place id
+  const geofenceRef = useRef([]);        // 步行模式的 geofence 圈
+  const demoTimerRef = useRef(null);     // 试乘自动行驶定时器
+  const demoDistRef = useRef(0);         // 试乘已行驶的沿线距离（米）
+  const scrubbingRef = useRef(false);    // 拖动进度条时暂停自动前进
   const [ready, setReady] = useState(false);
   const [locating, setLocating] = useState(false);
   const [demoing, setDemoing] = useState(false);
@@ -108,6 +114,17 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
   useEffect(() => { routeRef.current = route; }, [route]);
   const onArriveRef = useRef(onArrive);
   useEffect(() => { onArriveRef.current = onArrive; }, [onArrive]);
+  const onSelectPlaceRef = useRef(onSelectPlace);
+  useEffect(() => { onSelectPlaceRef.current = onSelectPlace; }, [onSelectPlace]);
+  const onSegmentChangeRef = useRef(onSegmentChange);
+  useEffect(() => { onSegmentChangeRef.current = onSegmentChange; }, [onSegmentChange]);
+  const onNearbyPlaceRef = useRef(onNearbyPlace);
+  useEffect(() => { onNearbyPlaceRef.current = onNearbyPlace; }, [onNearbyPlace]);
+  const onDemoingChangeRef = useRef(onDemoingChange);
+  useEffect(() => { onDemoingChangeRef.current = onDemoingChange; }, [onDemoingChange]);
+  useEffect(() => { onDemoingChangeRef.current?.(demoing); }, [demoing]);
+  const modeRef = useRef(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
 
   // 初始化地图 + 点击反查（只跑一次）
   useEffect(() => {
@@ -157,7 +174,7 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 路线变化时重绘：标记（初始隐藏，经过才冒出）+ Directions 道路级路线 + 预计算
+  // 路线/模式变化时重绘：常显标记 + Directions 道路级路线 + 预计算（步行模式跳过路线）
   useEffect(() => {
     if (!ready || !route?.path?.length) return;
     const gmaps = window.google.maps;
@@ -172,15 +189,21 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
       const marker = new gmaps.Marker({
         position: { lat: place.lat, lng: place.lng },
         map,
-        visible: false, // 初始隐藏，经过才「冒出」
+        visible: true, // 默认常显，点击可查看该地点的社区投稿
         icon: pinIcon(gmaps, place.order, false),
       });
       marker.addListener('click', () => {
-        infoWindowRef.current.setContent(popupHtml(place, false));
-        infoWindowRef.current.open(map, marker);
+        onSelectPlaceRef.current?.(place);
       });
       markersRef.current.push({ place, marker });
     });
+
+    if (mode === 'walk') {
+      // 步行模式：不画巴士路线，只留常显 pin + geofence（geofence 由下方单独 effect 绘制）
+      if (routePolylineRef.current) { routePolylineRef.current.setMap(null); routePolylineRef.current = null; }
+      journeyRef.current = null;
+      return;
+    }
 
     const origin = route.path[0];
     const destination = route.path[route.path.length - 1];
@@ -212,7 +235,32 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
         else dirService.route({ origin: originLL, destination: destinationLL, travelMode: gmaps.TravelMode.DRIVING }, (r2, s2) => { if (s2 === 'OK') drawRoute(r2); });
       },
     );
-  }, [ready, route]);
+  }, [ready, route, mode]);
+
+  // 步行模式：围绕各遗产点画 geofence 圈（半径 = triggerRadiusM）
+  useEffect(() => {
+    if (!ready || !route?.storyPoints?.length) return;
+    const gmaps = window.google.maps;
+    const map = mapRef.current;
+    geofenceRef.current.forEach((circle) => circle.setMap(null));
+    geofenceRef.current = [];
+    if (mode !== 'walk') return;
+    route.storyPoints.forEach((place) => {
+      if (place.lat == null || place.lng == null) return;
+      const circle = new gmaps.Circle({
+        map,
+        center: { lat: place.lat, lng: place.lng },
+        radius: place.triggerRadiusM || 150,
+        strokeColor: '#2d7ecb',
+        strokeOpacity: 0.5,
+        strokeWeight: 1.5,
+        fillColor: '#2d7ecb',
+        fillOpacity: 0.08,
+        clickable: false,
+      });
+      geofenceRef.current.push(circle);
+    });
+  }, [ready, route, mode]);
 
   const clearDot = () => {
     if (dotRef.current) { dotRef.current.setMap(null); dotRef.current = null; }
@@ -230,7 +278,7 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
 
   const resetReveal = () => {
     revealedRef.current.clear();
-    markersRef.current.forEach(({ marker }) => marker.setVisible(false));
+    markersRef.current.forEach(({ marker }) => marker.setAnimation(null));
   };
 
   // 只做 pin 高亮（不弹框、不打断），内容在连贯面板里
@@ -246,16 +294,34 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
     markersRef.current.forEach(({ place, marker }) => marker.setIcon(pinIcon(gmaps, place.order, false)));
   };
 
+  // 步行模式：判断是否进入某地点的 geofence，进入则 pin 脉冲 + 通知上层
+  const updateWalkPosition = (latlng) => {
+    const gmaps = gmapsRef.current;
+    if (!gmaps?.geometry?.spherical) return;
+    let hit = null;
+    for (const { place, marker } of markersRef.current) {
+      const d = gmaps.geometry.spherical.computeDistanceBetween(latlng, new gmaps.LatLng(place.lat, place.lng));
+      const inRange = d <= (place.triggerRadiusM || 150);
+      marker.setAnimation(inRange ? gmaps.Animation.BOUNCE : null);
+      if (inRange && !hit) hit = place;
+    }
+    if (hit?.id !== nearbyRef.current) {
+      nearbyRef.current = hit?.id ?? null;
+      onNearbyPlaceRef.current?.(hit || null);
+    }
+  };
+
   // 连贯讲解：面板始终显示「当前段 A→B + 主题」，随位置无缝切换到下一段
   // announce=false 时只更新位置/面板（拖动进度条过程中），不触发自动讲解；
   // announce=true 时若进入新站，才把「当前站 + 到下一站时长」上报给上层自动连播。
   const updateJourney = (latlng, announce = true) => {
     const j = journeyRef.current;
-    if (!j) { setSegment(null); return; }
+    if (!j) { setSegment(null); onSegmentChangeRef.current?.(null); return; }
     const { idx, dist } = j.nearest(latlng);
     if (dist > ON_ROUTE_MAX_M) {
       if (arrivedRef.current) { arrivedRef.current = null; resetArrival(); }
       setSegment(null);
+      onSegmentChangeRef.current?.(null);
       return;
     }
     const progress = j.cum[idx];
@@ -267,6 +333,7 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
     }
     if (!seg) seg = j.segments[j.segments.length - 1];
     setSegment(seg);
+    onSegmentChangeRef.current?.(seg);
 
     // 当前景点 = 最近已越过的景点（跳过虚拟起点 macao-ferry），用于 pin 高亮
     let current = null;
@@ -284,17 +351,22 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
         arrivedRef.current = current.id;
         highlightStation(current);
       }
-      if (announce && announcedRef.current !== current.id) {
-        announcedRef.current = current.id;
-        // 到下一站的时长 = 沿道路的站间距 ÷ 巴士速度（末站给足 60s）
-        const curIdx = j.stations.findIndex((s) => s.id === current.id);
-        const next = j.stations[curIdx + 1];
-        const timeToNextSec = next ? Math.max(15, Math.round((next.progress - current.progress) / BUS_SPEED_MPS)) : 60;
-        onArriveRef.current?.(current, timeToNextSec);
-      }
     } else if (arrivedRef.current) {
       arrivedRef.current = null;
       resetArrival();
+    }
+
+    // 播报对象 = 正在接近的下一站（seg.to）：乘车即讲第一站，过站即讲下一站，中间不停
+    const approaching = seg.to;
+    if (approaching && approaching.id !== 'macao-ferry' && announce && announcedRef.current !== approaching.id) {
+      announcedRef.current = approaching.id;
+      // 播报该站可用的时间预算 = 该站到再下一站的站间距 ÷ 速度（末站给足 60s）
+      const segIdx = j.segments.indexOf(seg);
+      const nextSeg = j.segments[segIdx + 1];
+      const speedMps = demoingRef.current ? (DEMO_SPEED_KMH / 3.6) : BUS_SPEED_MPS;
+      const timeToNextSec = nextSeg ? Math.max(15, Math.round((nextSeg.to.progress - approaching.progress) / speedMps)) : 60;
+      // 试乘由速度对比卡连播（走 onSegmentChange），不再触发讲解弹窗
+      if (!demoingRef.current) onArriveRef.current?.(approaching, timeToNextSec);
     }
   };
 
@@ -321,7 +393,8 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
         accuracyRef.current.setRadius(Math.max(pos.coords.accuracy || 40, 10));
 
         if (firstFix) { map.panTo(latlng); map.setZoom(16); firstFix = false; }
-        updateJourney(latlng);
+        if (modeRef.current === 'walk') updateWalkPosition(latlng);
+        else updateJourney(latlng);
       },
       (err) => {
         setLocating(false);
@@ -336,21 +409,40 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
     clearDot();
     arrivedRef.current = null;
     announcedRef.current = null;
+    nearbyRef.current = null;
+    onNearbyPlaceRef.current?.(null);
     resetArrival();
+    markersRef.current.forEach(({ marker }) => marker.setAnimation(null));
     setLocating(false);
     setStatus(null);
     setSegment(null);
   };
 
-  const seekDemo = (fraction, announce = false) => {
+  // 沿线距离 → 经纬度（试乘自动行驶用）
+  const pointAtDistance = (dist) => {
+    const gmaps = gmapsRef.current;
+    const path = routePathRef.current;
+    const j = journeyRef.current;
+    if (!gmaps || !path?.length || !j) return null;
+    const cum = j.cum;
+    if (dist <= 0) return path[0];
+    if (dist >= cum[cum.length - 1]) return path[path.length - 1];
+    let i = 1;
+    while (i < cum.length && cum[i] < dist) i++;
+    const a = path[i - 1];
+    const b = path[i];
+    const segLen = cum[i] - cum[i - 1] || 1;
+    const t = (dist - cum[i - 1]) / segLen;
+    return new gmaps.LatLng(a.lat() + (b.lat() - a.lat()) * t, a.lng() + (b.lng() - a.lng()) * t);
+  };
+
+  const moveDemoDot = () => {
     const gmaps = gmapsRef.current;
     const map = mapRef.current;
-    const path = routePathRef.current;
-    if (!gmaps || !map || !path?.length) return;
-    const clamped = Math.max(0, Math.min(1, fraction));
-    const idx = Math.min(path.length - 1, Math.round(clamped * (path.length - 1)));
-    const ll = path[idx];
-
+    const j = journeyRef.current;
+    if (!gmaps || !map || !j) return;
+    const ll = pointAtDistance(demoDistRef.current);
+    if (!ll) return;
     if (!dotRef.current) {
       dotRef.current = new gmaps.Marker({ position: ll, map, icon: blueDotIcon(gmaps), zIndex: 1000, clickable: false });
       accuracyRef.current = new gmaps.Circle({ map, strokeColor: '#2d7ecb', strokeOpacity: 0.4, strokeWeight: 1, fillColor: '#2d7ecb', fillOpacity: 0.12, clickable: false });
@@ -358,15 +450,39 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
     dotRef.current.setPosition(ll);
     accuracyRef.current.setCenter(ll);
     accuracyRef.current.setRadius(30);
-    setDemoProgress(clamped);
-    updateJourney(ll, announce);
+    const total = j.cum[j.cum.length - 1] || 1;
+    setDemoProgress(Math.min(1, demoDistRef.current / total));
+    updateJourney(ll, true);
+  };
+
+  const scrubDemo = (event) => {
+    const j = journeyRef.current;
+    if (!j) return;
+    const total = j.cum[j.cum.length - 1] || 1;
+    demoDistRef.current = (Number(event.target.value) / 100) * total;
+    moveDemoDot();
+  };
+
+  const tickDemo = () => {
+    if (!demoingRef.current || scrubbingRef.current) return;
+    const j = journeyRef.current;
+    if (!j) return;
+    const total = j.cum[j.cum.length - 1] || 1;
+    demoDistRef.current += (DEMO_SPEED_KMH / 3.6) * 0.2; // 每 200ms：速度(m/s) × 0.2s
+    if (demoDistRef.current >= total) {
+      demoDistRef.current = total;
+      moveDemoDot();
+      stopDemo();
+      return;
+    }
+    moveDemoDot();
   };
 
   const startDemo = () => {
     const gmaps = gmapsRef.current;
     const map = mapRef.current;
     const path = routePathRef.current;
-    if (!gmaps || !map || !path?.length) { setStatus('路线尚未就绪，稍后再试'); return; }
+    if (!gmaps || !map || !path?.length || !journeyRef.current) { setStatus('路线尚未就绪，稍后再试'); return; }
 
     if (watchIdRef.current != null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current = null; }
     setLocating(false);
@@ -376,23 +492,29 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
     resetArrival();
     resetReveal();
     setSegment(null);
+    onSegmentChangeRef.current?.(null);
 
     demoingRef.current = true;
     setDemoing(true);
-    setStatus('试乘模式 · 拖动进度条沿线移动');
-    seekDemo(0, false);
+    setStatus(`试乘模式 · 自动行驶 ${DEMO_SPEED_KMH} km/h`);
+    demoDistRef.current = 0;
+    moveDemoDot();
+    demoTimerRef.current = setInterval(tickDemo, 200);
   };
 
   const stopDemo = () => {
     demoingRef.current = false;
     setDemoing(false);
+    if (demoTimerRef.current != null) { clearInterval(demoTimerRef.current); demoTimerRef.current = null; }
     clearDot();
     arrivedRef.current = null;
     announcedRef.current = null;
     resetArrival();
     setStatus(null);
     setSegment(null);
+    onSegmentChangeRef.current?.(null);
     setDemoProgress(0);
+    demoDistRef.current = 0;
   };
 
   const toggleLocate = () => {
@@ -404,6 +526,22 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
     if (locating) stopLocating();
     if (demoing) stopDemo(); else startDemo();
   };
+
+  // 切换模式时清理进行中的定位/试乘状态
+  useEffect(() => {
+    if (demoTimerRef.current != null) { clearInterval(demoTimerRef.current); demoTimerRef.current = null; }
+    demoingRef.current = false;
+    setDemoing(false);
+    arrivedRef.current = null;
+    announcedRef.current = null;
+    nearbyRef.current = null;
+    onNearbyPlaceRef.current?.(null);
+    markersRef.current.forEach(({ marker }) => marker.setAnimation(null));
+    setSegment(null);
+    onSegmentChangeRef.current?.(null);
+    setDemoProgress(0);
+    demoDistRef.current = 0;
+  }, [mode]);
 
   return (
     <>
@@ -420,18 +558,12 @@ export default function MapViewGoogle({ route, onFail, onArrive }) {
       <button className={`lr-locate ${locating ? 'is-on' : ''}`} onClick={toggleLocate} title={locating ? '停止定位' : '定位到我的位置'}>
         <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="12" r="2" fill="currentColor" /></svg>
       </button>
-      <button className={`lr-demo ${demoing ? 'is-on' : ''}`} onClick={toggleDemo} title={demoing ? '停止试乘' : '试乘（拖动进度条沿线移动）'}>
+      {mode !== 'walk' && <button className={`lr-demo ${demoing ? 'is-on' : ''}`} onClick={toggleDemo} title={demoing ? '停止试乘' : '试乘（自动沿线行驶）'}>
         {demoing ? '■' : '▶'}
-      </button>
+      </button>}
       {demoing && (
-        <div className="lr-scrubber">
-          <span className="lr-scrubber-label">起</span>
-          <input type="range" min="0" max="1" step="0.002" value={demoProgress}
-            aria-label="沿线试乘进度"
-            onChange={(e) => seekDemo(parseFloat(e.target.value), false)}
-            onPointerUp={(e) => seekDemo(parseFloat(e.target.value), true)}
-            onKeyUp={(e) => seekDemo(parseFloat(e.target.value), true)} />
-          <span className="lr-scrubber-label">止</span>
+        <div className="lr-demo-controls">
+          <input className="lr-demo-range" type="range" min="0" max="100" step="0.5" value={Math.round(demoProgress * 100)} onChange={scrubDemo} onPointerDown={() => { scrubbingRef.current = true; }} onPointerUp={() => { scrubbingRef.current = false; }} aria-label="试乘进度" />
         </div>
       )}
     </>
