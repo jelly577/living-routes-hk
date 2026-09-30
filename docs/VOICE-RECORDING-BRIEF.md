@@ -39,6 +39,16 @@ English version:
 
 > I consent to Lorevista / Living Routes HK using this recording in the hackathon prototype and demo for transcription, noise reduction, translation, subtitles and a narrated summary. I understand it will not be published automatically; the team will ask again before adding it to a public story library.
 
+上面的授权**不包含声音克隆**。如果希望由 AI 用录音者的声音朗读经其确认的新稿件，必须另行、单独取得可撤回的授权：
+
+> 我另行同意 Living Routes HK 使用这段录音建立仅用于本项目已批准导览稿件的 AI 声音副本。我明白这不是公开发布授权，也不是无限期或通用授权；我可以随时要求停止生成新音频及撤下尚未锁定的衍生音频。
+
+English version:
+
+> I separately consent to Living Routes HK using this recording to create an AI replica of my voice solely for approved scripts in this project. I understand that this is not permission for public release or unrestricted reuse, and I may withdraw permission for future generation and request removal of derivative audio that has not been contractually retained.
+
+原型阶段默认优先播放原始录音；没有上述独立授权时，只能使用原声片段或中性旁白，不得模拟录音者声音。即使已经同意声音副本，每段新生成稿件仍需人工复核，并清楚标注为 AI 合成语音。
+
 ## 交给代码时的 metadata
 
 ```json
@@ -48,8 +58,8 @@ English version:
   "language": "zh-HK",
   "consentForDemo": true,
   "consentForPublicLibrary": false,
+  "consentForVoiceReplica": false,
   "sourceType": "recorded-with-consent",
   "factStatus": "personal-memory-not-a-fact-claim"
 }
 ```
-

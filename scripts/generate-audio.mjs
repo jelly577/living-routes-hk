@@ -1,9 +1,17 @@
 #!/usr/bin/env node
-// Generates backup narration audio for all scripts with the macOS built-in voices.
+// Generates backup narration audio for all scripts.
+//
+// Two engines:
+//   edge (default) — Microsoft neural voices via the free `edge-tts` tool. Natural-sounding,
+//                    real Cantonese voices. Needs internet + `pip3 install edge-tts` once.
+//   say            — macOS built-in voices (offline, but robotic). Old behaviour.
+//
 // Run on a Mac, from the project folder:
-//   node scripts/generate-audio.mjs              # all languages
-//   node scripts/generate-audio.mjs --lang en    # one language (en | zh-CN | zh-HK)
-//   node scripts/generate-audio.mjs --force      # regenerate files that already exist
+//   node scripts/generate-audio.mjs                          # (re)generate everything with neural voices
+//   node scripts/generate-audio.mjs --lang zh-HK             # one language (en | zh-CN | zh-HK)
+//   node scripts/generate-audio.mjs --voice zh-HK=zh-HK-WanLungNeural   # pick another voice
+//   node scripts/generate-audio.mjs --rate -5%               # a bit slower (edge only)
+//   node scripts/generate-audio.mjs --engine say             # offline macOS voices
 //   node scripts/generate-audio.mjs --list-voices
 // Output: public/audio/<placeId>.<track>.<length>.<lang>.m4a + public/audio/manifest.json
 // The player (src/services/ttsService.js) plays these first and falls back to browser TTS.
@@ -18,22 +26,49 @@ import { allStories, localizeStory, SUPPORTED_LANGUAGES } from '../src/content/s
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'audio');
 const args = process.argv.slice(2);
+const argValue = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const argValues = (name) => args.flatMap((a, i) => (a === name && args[i + 1] ? [args[i + 1]] : []));
 const force = args.includes('--force');
-const langArg = args.includes('--lang') ? args[args.indexOf('--lang') + 1] : null;
+const langArg = argValue('--lang');
+const engine = argValue('--engine') || 'edge';
 
 if (process.platform !== 'darwin') {
-  console.error('This script uses the macOS "say" command. Run it on a Mac.');
+  console.error('Run this script on a Mac (it uses afinfo/afconvert, and `say` for the offline engine).');
   process.exit(1);
 }
 
-// Preferred voices per language (first one installed wins), then any voice with a matching locale.
+// ---------- Engine: edge (Microsoft neural voices) ----------
+
+// Default neural voices. Alternatives worth trying:
+//   en:    en-GB-RyanNeural (male), en-HK-YanNeural / en-HK-SamNeural (Hong Kong English accent)
+//   zh-CN: zh-CN-YunxiNeural (male), zh-CN-XiaoyiNeural
+//   zh-HK: zh-HK-WanLungNeural (male), zh-HK-HiuGaaiNeural
+const EDGE_VOICES = {
+  en: 'en-GB-SoniaNeural',
+  'zh-CN': 'zh-CN-XiaoxiaoNeural',
+  'zh-HK': 'zh-HK-HiuMaanNeural',
+};
+for (const pair of argValues('--voice')) {
+  const [lang, name] = pair.split('=');
+  if (lang && name) EDGE_VOICES[lang] = name;
+}
+const EDGE_RATE = argValue('--rate') || '+0%';
+
+function edgeCommand() {
+  try { execFileSync('edge-tts', ['--help'], { stdio: 'ignore' }); return ['edge-tts']; } catch {}
+  try { execFileSync('python3', ['-m', 'edge_tts', '--help'], { stdio: 'ignore' }); return ['python3', '-m', 'edge_tts']; } catch {}
+  return null;
+}
+
+// ---------- Engine: say (macOS built-in voices) ----------
+
 const PREFERRED = {
   en: ['Daniel', 'Serena', 'Kate', 'Samantha', 'Alex'],
   'zh-CN': ['Tingting', 'Ting-Ting', 'Lili', 'Yu-shu'],
   'zh-HK': ['Sinji', 'Sin-ji'],
 };
 const LOCALES = { en: ['en_GB', 'en_US', 'en_AU'], 'zh-CN': ['zh_CN'], 'zh-HK': ['zh_HK'] };
-const RATE = { en: 175, 'zh-CN': 190, 'zh-HK': 190 }; // words/min for `say -r`
+const SAY_RATE = { en: 175, 'zh-CN': 190, 'zh-HK': 190 }; // words/min for `say -r`
 
 function installedVoices() {
   const out = execFileSync('say', ['-v', '?']).toString();
@@ -43,15 +78,7 @@ function installedVoices() {
   }).filter(Boolean);
 }
 
-const voices = installedVoices();
-if (args.includes('--list-voices')) {
-  for (const lang of SUPPORTED_LANGUAGES) {
-    console.log(lang, '→', voices.filter((v) => LOCALES[lang].includes(v.locale)).map((v) => v.name).join(', ') || '(none installed)');
-  }
-  process.exit(0);
-}
-
-function chooseVoice(lang) {
+function chooseSayVoice(voices, lang) {
   for (const name of PREFERRED[lang]) {
     const v = voices.find((x) => x.name === name || x.name.startsWith(`${name} (`));
     if (v) return v.name;
@@ -63,22 +90,59 @@ function chooseVoice(lang) {
   return null;
 }
 
+// ---------- Listing ----------
+
+if (args.includes('--list-voices')) {
+  if (engine === 'edge') {
+    const cmd = edgeCommand();
+    if (!cmd) { console.error('edge-tts is not installed. Run: pip3 install edge-tts'); process.exit(1); }
+    const out = execFileSync(cmd[0], [...cmd.slice(1), '--list-voices']).toString();
+    console.log(out.split('\n').filter((l) => /(en-GB|en-HK|zh-CN|zh-HK)-/.test(l)).join('\n'));
+  } else {
+    const voices = installedVoices();
+    for (const lang of SUPPORTED_LANGUAGES) {
+      console.log(lang, '→', voices.filter((v) => LOCALES[lang].includes(v.locale)).map((v) => v.name).join(', ') || '(none installed)');
+    }
+  }
+  process.exit(0);
+}
+
+// ---------- Helpers ----------
+
 const durationOf = (file) => {
   const info = execFileSync('afinfo', [file]).toString();
   const m = info.match(/estimated duration:\s*([\d.]+)/);
   return m ? Math.round(parseFloat(m[1]) * 10) / 10 : null;
 };
 
-function encodeM4a(input, output) {
+function encodeM4a(input, output, bitrate) {
   // Newer macOS versions no longer accept afconvert's historical `-d aac`
   // spelling consistently. Homebrew ffmpeg is more predictable when present.
   try {
-    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', input, '-c:a', 'aac', '-b:a', '48000', output]);
+    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', input, '-c:a', 'aac', '-b:a', String(bitrate), output]);
     return;
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
   }
-  execFileSync('afconvert', ['-f', 'm4af', '-d', 'aac', '-b', '48000', input, output]);
+  execFileSync('afconvert', ['-f', 'm4af', '-d', 'aac', '-b', String(bitrate), input, output]);
+}
+
+// ---------- Main ----------
+
+let edge = null;
+let sayVoices = null;
+if (engine === 'edge') {
+  edge = edgeCommand();
+  if (!edge) {
+    console.error('\nedge-tts is not installed. Install it once, then run this again:\n  pip3 install edge-tts\n');
+    console.error('(Or use the offline robotic voices: node scripts/generate-audio.mjs --engine say)');
+    process.exit(1);
+  }
+} else if (engine === 'say') {
+  sayVoices = installedVoices();
+} else {
+  console.error(`Unknown engine "${engine}". Use --engine edge or --engine say.`);
+  process.exit(1);
 }
 
 mkdirSync(outDir, { recursive: true });
@@ -86,37 +150,48 @@ const manifestPath = join(outDir, 'manifest.json');
 const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
 const langs = langArg ? [langArg] : SUPPORTED_LANGUAGES;
 const tmpTxt = join(tmpdir(), 'lrhk-tts.txt');
-const tmpAiff = join(tmpdir(), 'lrhk-tts.aiff');
-let made = 0; let skipped = 0;
+const tmpRaw = join(tmpdir(), engine === 'edge' ? 'lrhk-tts.mp3' : 'lrhk-tts.aiff');
+let made = 0; let skipped = 0; let failed = 0;
 
 for (const lang of langs) {
-  const voice = chooseVoice(lang);
+  const voice = engine === 'edge' ? EDGE_VOICES[lang] : chooseSayVoice(sayVoices, lang);
   if (!voice) {
-    console.warn(`\n⚠ No macOS voice for ${lang}. Install one: System Settings → Accessibility → Spoken Content → System voice → Manage Voices…`);
-    console.warn(`  Look for: ${PREFERRED[lang].join(' / ')}. Then run this script again.`);
+    console.warn(`\n⚠ No voice for ${lang}.`);
+    if (engine === 'say') console.warn('  Install one: System Settings → Accessibility → Spoken Content → System voice → Manage Voices…');
     continue;
   }
-  console.log(`\n${lang}: using voice "${voice}"`);
+  console.log(`\n${lang}: using ${engine} voice "${voice}"`);
   for (const story of allStories) {
     const key = `${story.placeId}.${story.track}.${story.length}.${lang}`;
     const file = `${key}.m4a`;
     const out = join(outDir, file);
-    if (!force && existsSync(out) && manifest[key]) { skipped += 1; continue; }
+    // Skip only files already made with this same voice, so switching voices (or retrying failures) just works.
+    if (!force && existsSync(out) && manifest[key]?.voice === voice) { skipped += 1; continue; }
     const { text } = localizeStory(story, lang);
     writeFileSync(tmpTxt, text, 'utf8');
-    execFileSync('say', ['-v', voice, '-r', String(RATE[lang]), '-f', tmpTxt, '-o', tmpAiff]);
-    if (!existsSync(tmpAiff) || statSync(tmpAiff).size <= 4096) {
-      throw new Error(`macOS say produced no audio for ${key}. Run this script from a normal local Terminal session.`);
+    rmSync(tmpRaw, { force: true });
+    try {
+      if (engine === 'edge') {
+        execFileSync(edge[0], [...edge.slice(1), '--voice', voice, `--rate=${EDGE_RATE}`, '--file', tmpTxt, '--write-media', tmpRaw], { stdio: ['ignore', 'ignore', 'pipe'] });
+      } else {
+        execFileSync('say', ['-v', voice, '-r', String(SAY_RATE[lang]), '-f', tmpTxt, '-o', tmpRaw]);
+      }
+      if (!existsSync(tmpRaw) || statSync(tmpRaw).size <= 4096) throw new Error('no audio produced');
+    } catch (error) {
+      console.warn(`  ✗ ${file}  ${String(error.stderr || error.message).trim().split('\n').pop()}`);
+      failed += 1;
+      continue;
     }
-    encodeM4a(tmpAiff, out);
+    encodeM4a(tmpRaw, out, engine === 'edge' ? 64000 : 48000);
     const durationSec = durationOf(out);
-    manifest[key] = { file, language: lang, voice, durationSec, kb: Math.round(statSync(out).size / 1024), generatedAt: new Date().toISOString().slice(0, 10) };
+    manifest[key] = { file, language: lang, engine, voice, durationSec, kb: Math.round(statSync(out).size / 1024), generatedAt: new Date().toISOString().slice(0, 10) };
     console.log(`  ✓ ${file}  ${durationSec}s`);
     made += 1;
   }
 }
 
 rmSync(tmpTxt, { force: true });
-rmSync(tmpAiff, { force: true });
+rmSync(tmpRaw, { force: true });
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`\nDone: ${made} generated, ${skipped} already existed. Manifest: public/audio/manifest.json`);
+console.log(`\nDone: ${made} generated, ${skipped} already existed, ${failed} failed. Manifest: public/audio/manifest.json`);
+if (failed) console.log('Failures are usually network hiccups — run the same command again; finished files are skipped.');

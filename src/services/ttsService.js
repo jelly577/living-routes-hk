@@ -68,9 +68,24 @@ export async function pickVoice(language) {
     const exact = voices.filter((v) => norm(v.lang) === t);
     const prefix = voices.filter((v) => norm(v.lang).startsWith(`${t}-`));
     const found = [...exact, ...prefix];
-    if (found.length) return found.find((v) => v.localService) || found[0];
+    if (found.length) return found.sort((a, b) => voiceScore(b) - voiceScore(a))[0];
   }
   return null;
+}
+
+// Prefer natural-sounding voices over the old robotic system ones:
+// Edge "Online (Natural)" neural voices, Safari/iOS "Premium"/"Enhanced", Chrome "Google …" voices.
+function voiceScore(v) {
+  const name = v.name || '';
+  let s = 0;
+  if (/natural|neural/i.test(name)) s += 8;
+  if (/premium/i.test(name)) s += 6;
+  if (/enhanced|improved/i.test(name)) s += 4;
+  if (/^google/i.test(name)) s += 3;
+  if (/online/i.test(name)) s += 2;
+  if (/compact|eloquence|novelty/i.test(name)) s -= 5;
+  if (v.localService) s += 0.5; // tie-breaker only: local voices start faster
+  return s;
 }
 
 // Chrome cuts long utterances after ~15s, so speak sentence by sentence.
@@ -143,7 +158,10 @@ export function createNarrator({ onStateChange, onProgress } = {}) {
       const u = new SpeechSynthesisUtterance(part);
       u.voice = voice;
       u.lang = voice.lang;
-      u.rate = 1;
+      // A slightly slower, neutral delivery is less synthetic than the browser
+      // default while remaining intelligible on a moving bus.
+      u.rate = 0.92;
+      u.pitch = 0.98;
       u.onstart = () => { if (my === token && i === 0) emit('playing'); };
       u.onboundary = (e) => { if (my === token) progress((spoken + e.charIndex) / total); };
       u.onend = () => {
