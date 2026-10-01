@@ -257,3 +257,12 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
+/* Language pills on the collapsed player bar */
+.mini-lang { display: flex; gap: 4px; flex-shrink: 0; }
+.mini-lang button {
+  min-width: 30px; height: 28px; padding: 0 6px;
+  border-radius: 999px; border: 1px solid #cfc8bc;
+  background: transparent; color: #1f3a33; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.mini-lang button.active { background: #1f3a33; border-color: #1f3a33; color: #fff; }

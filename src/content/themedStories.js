@@ -43,7 +43,7 @@ const themed = ({ placeId, theme, length, sourceUrls, en, zhCN, zhHK }) => {
   for (const [lang, entry] of Object.entries(localized)) entry.durationSec = estimateSec(entry.text, lang);
   return {
     placeId,
-    track: 'themed',
+    track: `themed-${theme}`, // audio key: <placeId>.themed-<theme>.<length>.<lang>.m4a
     theme,
     themeLabel: THEMES[theme].label.en,
     contentType: 'themed-narration',
@@ -226,3 +226,8 @@ export function getThemedStory({ placeId, theme, language = 'en', remainingTimeS
   const fitting = [...options].reverse().find((s) => s.durationSec <= remainingTimeSec);
   return fitting || options[0];
 }
+
+// Flat list for scripts/generate-audio.mjs (neural voice files).
+export const allThemedStories = Object.values(themedStories).flatMap((themes) =>
+  Object.values(themes).flatMap((lengths) => Object.values(lengths)),
+);

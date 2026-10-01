@@ -484,5 +484,275 @@
     "durationSec": 61.3,
     "kb": 506,
     "generatedAt": "2026-09-29"
+  },
+  "central-market.themed-architecture-history.short.en": {
+    "file": "central-market.themed-architecture-history.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 10.2,
+    "kb": 89,
+    "generatedAt": "2026-09-30"
+  },
+  "central-market.themed-architecture-history.medium.en": {
+    "file": "central-market.themed-architecture-history.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 40.1,
+    "kb": 348,
+    "generatedAt": "2026-09-30"
+  },
+  "court-of-final-appeal.themed-architecture-history.short.en": {
+    "file": "court-of-final-appeal.themed-architecture-history.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 9.9,
+    "kb": 87,
+    "generatedAt": "2026-09-30"
+  },
+  "court-of-final-appeal.themed-architecture-history.medium.en": {
+    "file": "court-of-final-appeal.themed-architecture-history.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 35.9,
+    "kb": 317,
+    "generatedAt": "2026-09-30"
+  },
+  "lee-tung-street.themed-architecture-history.short.en": {
+    "file": "lee-tung-street.themed-architecture-history.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 11.4,
+    "kb": 101,
+    "generatedAt": "2026-09-30"
+  },
+  "lee-tung-street.themed-architecture-history.medium.en": {
+    "file": "lee-tung-street.themed-architecture-history.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 41,
+    "kb": 356,
+    "generatedAt": "2026-09-30"
+  },
+  "blue-house.themed-architecture-history.short.en": {
+    "file": "blue-house.themed-architecture-history.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 8.4,
+    "kb": 73,
+    "generatedAt": "2026-09-30"
+  },
+  "blue-house.themed-architecture-history.medium.en": {
+    "file": "blue-house.themed-architecture-history.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 38.1,
+    "kb": 332,
+    "generatedAt": "2026-09-30"
+  },
+  "happy-valley-racecourse.themed-architecture-history.short.en": {
+    "file": "happy-valley-racecourse.themed-architecture-history.short.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 10.9,
+    "kb": 94,
+    "generatedAt": "2026-09-30"
+  },
+  "happy-valley-racecourse.themed-architecture-history.medium.en": {
+    "file": "happy-valley-racecourse.themed-architecture-history.medium.en.m4a",
+    "language": "en",
+    "engine": "edge",
+    "voice": "en-GB-SoniaNeural",
+    "durationSec": 39.4,
+    "kb": 338,
+    "generatedAt": "2026-09-30"
+  },
+  "central-market.themed-architecture-history.short.zh-CN": {
+    "file": "central-market.themed-architecture-history.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 11.1,
+    "kb": 92,
+    "generatedAt": "2026-09-30"
+  },
+  "central-market.themed-architecture-history.medium.zh-CN": {
+    "file": "central-market.themed-architecture-history.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 41.4,
+    "kb": 345,
+    "generatedAt": "2026-09-30"
+  },
+  "court-of-final-appeal.themed-architecture-history.short.zh-CN": {
+    "file": "court-of-final-appeal.themed-architecture-history.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 10,
+    "kb": 83,
+    "generatedAt": "2026-09-30"
+  },
+  "court-of-final-appeal.themed-architecture-history.medium.zh-CN": {
+    "file": "court-of-final-appeal.themed-architecture-history.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 35.8,
+    "kb": 298,
+    "generatedAt": "2026-09-30"
+  },
+  "lee-tung-street.themed-architecture-history.short.zh-CN": {
+    "file": "lee-tung-street.themed-architecture-history.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 9.6,
+    "kb": 78,
+    "generatedAt": "2026-09-30"
+  },
+  "lee-tung-street.themed-architecture-history.medium.zh-CN": {
+    "file": "lee-tung-street.themed-architecture-history.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 37.6,
+    "kb": 313,
+    "generatedAt": "2026-09-30"
+  },
+  "blue-house.themed-architecture-history.short.zh-CN": {
+    "file": "blue-house.themed-architecture-history.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 6.9,
+    "kb": 58,
+    "generatedAt": "2026-09-30"
+  },
+  "blue-house.themed-architecture-history.medium.zh-CN": {
+    "file": "blue-house.themed-architecture-history.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 37.8,
+    "kb": 313,
+    "generatedAt": "2026-09-30"
+  },
+  "happy-valley-racecourse.themed-architecture-history.short.zh-CN": {
+    "file": "happy-valley-racecourse.themed-architecture-history.short.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 10.9,
+    "kb": 91,
+    "generatedAt": "2026-09-30"
+  },
+  "happy-valley-racecourse.themed-architecture-history.medium.zh-CN": {
+    "file": "happy-valley-racecourse.themed-architecture-history.medium.zh-CN.m4a",
+    "language": "zh-CN",
+    "engine": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "durationSec": 39,
+    "kb": 326,
+    "generatedAt": "2026-09-30"
+  },
+  "central-market.themed-architecture-history.short.zh-HK": {
+    "file": "central-market.themed-architecture-history.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 11.8,
+    "kb": 95,
+    "generatedAt": "2026-09-30"
+  },
+  "central-market.themed-architecture-history.medium.zh-HK": {
+    "file": "central-market.themed-architecture-history.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 41.6,
+    "kb": 342,
+    "generatedAt": "2026-09-30"
+  },
+  "court-of-final-appeal.themed-architecture-history.short.zh-HK": {
+    "file": "court-of-final-appeal.themed-architecture-history.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 10.2,
+    "kb": 83,
+    "generatedAt": "2026-09-30"
+  },
+  "court-of-final-appeal.themed-architecture-history.medium.zh-HK": {
+    "file": "court-of-final-appeal.themed-architecture-history.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 38.3,
+    "kb": 308,
+    "generatedAt": "2026-09-30"
+  },
+  "lee-tung-street.themed-architecture-history.short.zh-HK": {
+    "file": "lee-tung-street.themed-architecture-history.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 10.2,
+    "kb": 78,
+    "generatedAt": "2026-09-30"
+  },
+  "lee-tung-street.themed-architecture-history.medium.zh-HK": {
+    "file": "lee-tung-street.themed-architecture-history.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 39.6,
+    "kb": 319,
+    "generatedAt": "2026-09-30"
+  },
+  "blue-house.themed-architecture-history.short.zh-HK": {
+    "file": "blue-house.themed-architecture-history.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 7.3,
+    "kb": 56,
+    "generatedAt": "2026-09-30"
+  },
+  "blue-house.themed-architecture-history.medium.zh-HK": {
+    "file": "blue-house.themed-architecture-history.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 39.2,
+    "kb": 324,
+    "generatedAt": "2026-09-30"
+  },
+  "happy-valley-racecourse.themed-architecture-history.short.zh-HK": {
+    "file": "happy-valley-racecourse.themed-architecture-history.short.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 11.7,
+    "kb": 95,
+    "generatedAt": "2026-09-30"
+  },
+  "happy-valley-racecourse.themed-architecture-history.medium.zh-HK": {
+    "file": "happy-valley-racecourse.themed-architecture-history.medium.zh-HK.m4a",
+    "language": "zh-HK",
+    "engine": "edge",
+    "voice": "zh-HK-HiuMaanNeural",
+    "durationSec": 40.4,
+    "kb": 321,
+    "generatedAt": "2026-09-30"
   }
 }

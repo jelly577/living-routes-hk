@@ -200,6 +200,9 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
           <b>{storyResult?.story.title || '讲解已就绪'}</b>
           <small>{stateLabel}</small>
         </div>
+        <div className="mini-lang">
+          {[['en', 'EN'], ['zh-HK', '粤'], ['zh-CN', '普']].map(([code, label]) => <button key={code} className={language === code ? 'active' : ''} onClick={() => changeLanguage(code)}>{label}</button>)}
+        </div>
         <button className="mini-icon" onClick={toggleCollapse} title="展开讲解">⌃</button>
         <button className="mini-icon" onClick={onClose} title="关闭">×</button>
       </div>
