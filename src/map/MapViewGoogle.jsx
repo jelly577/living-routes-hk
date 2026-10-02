@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { escapeHtml } from './osm.js';
 import { loadGoogleMaps } from './loadGoogleMaps.js';
 import { segmentThemes } from './segmentThemes.js';
+import { getLanguage, placeName, t } from '../i18n.js';
+
+const segmentThemeText = (theme) => !theme ? '' : getLanguage() === 'zh-HK' ? theme.zh : getLanguage() === 'zh-CN' ? (theme.zhCN || theme.zh) : theme.en;
 
 const ROUTE_COLOR = '#c4502f';
 const ON_ROUTE_MAX_M = 600; // 距路线超过该距离则视为「不在车上」，不显示讲解
@@ -20,9 +23,9 @@ function blueDotIcon(gmaps) {
 }
 
 function popupHtml(place, arriving) {
-  const imgStatus = place.image?.status === 'verified' ? '图片：已核实' : '图片：待核实';
-  const coordStatus = place.coordinateStatus === 'verified' ? '坐标：已核对' : '坐标：地图目测（待实地核对）';
-  const eyebrow = arriving ? `📍 你正在经过 · POINT ${place.order}` : `HERITAGE POINT ${place.order}`;
+  const imgStatus = place.image?.status === 'verified' ? t('mapui.photoVerified') : t('mapui.photoPending');
+  const coordStatus = place.coordinateStatus === 'verified' ? t('mapui.locVerified') : t('mapui.locApprox');
+  const eyebrow = arriving ? t('mapui.passing', { n: place.order }) : t('mapui.point', { n: place.order });
   const image = place.image?.url
     ? `<img class="lr-popup-image" src="${escapeHtml(place.image.url)}" alt="${escapeHtml(place.image.alt || place.nameEn)}" />`
     : '';
@@ -32,8 +35,7 @@ function popupHtml(place, arriving) {
   return `<div class="lr-popup">
     ${image}
     <span class="lr-popup-eyebrow">${eyebrow}</span>
-    <strong>${place.nameZh}</strong>
-    <em>${place.nameEn}</em>
+    <strong>${escapeHtml(placeName(place))}</strong>
     <small>${imgStatus} · ${coordStatus}</small>
     ${credit}
   </div>`;
@@ -148,18 +150,15 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
         map.addListener('click', (event) => {
           const latlng = event.latLng;
           infoWindowRef.current.close();
-          infoWindowRef.current.setContent('<div class="lr-popup"><small>查询地名中…</small></div>');
+          infoWindowRef.current.setContent(`<div class="lr-popup"><small>${t('mapui.lookingUp')}</small></div>`);
           infoWindowRef.current.setPosition(latlng);
           infoWindowRef.current.open(map);
-          Promise.all([
-            reverseGeocodeLine(geocoder, latlng, 'en'),
-            reverseGeocodeLine(geocoder, latlng, 'zh-Hant'),
-          ])
-            .then(([en, zh]) => {
-              infoWindowRef.current.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">你点到了这里</span><p class="lr-click-name">${escapeHtml(en)}</p><p class="lr-click-name">${escapeHtml(zh)}</p></div>`);
+          reverseGeocodeLine(geocoder, latlng, 'en')
+            .then((en) => {
+              infoWindowRef.current.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">${t('mapui.tapped')}</span><p class="lr-click-name">${escapeHtml(en)}</p></div>`);
             })
             .catch(() => {
-              infoWindowRef.current.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">离线 · 仅坐标</span><strong>${latlng.lat().toFixed(5)}, ${latlng.lng().toFixed(5)}</strong></div>`);
+              infoWindowRef.current.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">${t('mapui.offlineCoords')}</span><strong>${latlng.lat().toFixed(5)}, ${latlng.lng().toFixed(5)}</strong></div>`);
             });
         });
 
@@ -371,12 +370,12 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
   };
 
   const startLocating = () => {
-    if (!('geolocation' in navigator)) { setStatus('此设备不支持定位'); return; }
+    if (!('geolocation' in navigator)) { setStatus(t('mapui.noGeo')); return; }
     const gmaps = gmapsRef.current;
     const map = mapRef.current;
     if (!gmaps || !map) return;
     setLocating(true);
-    setStatus('正在定位…');
+    setStatus(t('mapui.locating'));
     resetReveal();
     announcedRef.current = null;
     let firstFix = true;
@@ -398,7 +397,7 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
       },
       (err) => {
         setLocating(false);
-        setStatus(err.code === 1 ? '定位被拒绝 · 请在浏览器允许位置权限' : '定位失败，请重试');
+        setStatus(err.code === 1 ? t('mapui.geoDenied') : t('mapui.geoFailed'));
       },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
     );
@@ -482,7 +481,7 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
     const gmaps = gmapsRef.current;
     const map = mapRef.current;
     const path = routePathRef.current;
-    if (!gmaps || !map || !path?.length || !journeyRef.current) { setStatus('路线尚未就绪，稍后再试'); return; }
+    if (!gmaps || !map || !path?.length || !journeyRef.current) { setStatus(t('mapui.routeNotReady')); return; }
 
     if (watchIdRef.current != null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current = null; }
     setLocating(false);
@@ -496,7 +495,7 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
 
     demoingRef.current = true;
     setDemoing(true);
-    setStatus(`试乘模式 · 自动行驶 ${DEMO_SPEED_KMH} km/h`);
+    setStatus(t('mapui.demoRide', { kmh: DEMO_SPEED_KMH }));
     demoDistRef.current = 0;
     moveDemoDot();
     demoTimerRef.current = setInterval(tickDemo, 200);
@@ -548,22 +547,21 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
       <div ref={containerRef} className="lr-map" />
       {segment && (
         <div className="lr-segment">
-          <span className="lr-segment-eyebrow">你正在 · YOU&apos;RE ON</span>
-          <div className="lr-segment-route">{segment.from.nameZh} <b>→</b> {segment.to.nameZh}</div>
-          {segment.theme?.zh && <div className="lr-segment-theme">主題 · {segment.theme.zh}</div>}
-          {segment.theme?.en && <div className="lr-segment-theme-en">{segment.theme.en}</div>}
+          <span className="lr-segment-eyebrow">{t('mapui.youreOn')}</span>
+          <div className="lr-segment-route">{placeName(segment.from)} <b>→</b> {placeName(segment.to)}</div>
+                    {segmentThemeText(segment.theme) && <div className="lr-segment-theme-en">{segmentThemeText(segment.theme)}</div>}
         </div>
       )}
       {status && <div className="lr-locate-status">{status}</div>}
-      <button className={`lr-locate ${locating ? 'is-on' : ''}`} onClick={toggleLocate} title={locating ? '停止定位' : '定位到我的位置'}>
+      <button className={`lr-locate ${locating ? 'is-on' : ''}`} onClick={toggleLocate} title={locating ? t('mapui.stopLocate') : t('mapui.locate')} aria-label={locating ? t('mapui.stopLocate') : t('mapui.locate')}>
         <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="12" r="2" fill="currentColor" /></svg>
       </button>
-      {mode !== 'walk' && <button className={`lr-demo ${demoing ? 'is-on' : ''}`} onClick={toggleDemo} title={demoing ? '停止试乘' : '试乘（自动沿线行驶）'}>
+      {mode !== 'walk' && <button className={`lr-demo ${demoing ? 'is-on' : ''}`} onClick={toggleDemo} title={demoing ? t('mapui.stopDemo') : t('mapui.startDemo')} aria-label={demoing ? t('mapui.stopDemo') : t('mapui.startDemo')}>
         {demoing ? '■' : '▶'}
       </button>}
       {demoing && (
         <div className="lr-demo-controls">
-          <input className="lr-demo-range" type="range" min="0" max="100" step="0.5" value={Math.round(demoProgress * 100)} onChange={scrubDemo} onPointerDown={() => { scrubbingRef.current = true; }} onPointerUp={() => { scrubbingRef.current = false; }} aria-label="试乘进度" />
+          <input className="lr-demo-range" type="range" min="0" max="100" step="0.5" value={Math.round(demoProgress * 100)} onChange={scrubDemo} onPointerDown={() => { scrubbingRef.current = true; }} onPointerUp={() => { scrubbingRef.current = false; }} aria-label={t('mapui.demoProgress')} />
         </div>
       )}
     </>

@@ -1,32 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { mockPosts } from './data/mockPosts.js';
 import { identityOptions, interestOptions } from './data/options.js';
+import { getPlaceById } from './data/places.js';
 import { addPost, analyzeInterestProfile, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
 import { applyPhotoStyle } from './services/memoryPostStorage.js';
 import MapView from './MapView.jsx';
+import { UI_LANGUAGES, defaultNarration, getLanguage, placeName, routeTitle, setLanguage as setUiLanguage, t } from './i18n.js';
 
-const ethicsCommitments = [
-  {
-    title: 'Consent',
-    chinese: '知情同意',
-    text: 'Contributors are told how their story, voice and images may be used before anything is published.',
-  },
-  {
-    title: 'Attribution',
-    chinese: '署名选择',
-    text: 'Contributors choose to be named, credited with a pseudonym or remain anonymous.',
-  },
-  {
-    title: 'Correction rights',
-    chinese: '纠错与撤回',
-    text: 'Contributors can request corrections or withdraw their material from future use.',
-  },
-  {
-    title: 'Fair benefit sharing',
-    chinese: '合理分享收益',
-    text: 'Any institutional or commercial use should agree fair benefits with contributors and partner communities.',
-  },
-];
+const ethicsCommitments = ['consent', 'attribution', 'correction', 'benefit'];
+
+// Demo/community posts: show place, text and author in the interface language when a translation exists.
+const postPlace = (post) => { const place = getPlaceById(post.placeId || post.location); return place ? placeName(place) : post.place; };
+const postText = (post) => post.textI18n?.[getLanguage()] || post.text;
+const postAuthor = (post) => post.authorI18n?.[getLanguage()] || post.author;
+
+function LanguagePicker({ onPick }) {
+  return <main className="language-screen page-enter">
+    <header>
+      <span className="eyebrow">LIVING ROUTES HK · 城市聲線</span>
+      <h1 lang="en">Choose your language</h1>
+      <p><span lang="zh-HK">選擇語言</span> · <span lang="zh-CN">选择语言</span></p>
+    </header>
+    <div className="language-options">
+      {UI_LANGUAGES.map((option) => <button key={option.code} lang={option.code} onClick={() => onPick(option.code)}>
+        <b>{option.label}</b><small>{option.sub}</small><span aria-hidden="true">→</span>
+      </button>)}
+    </div>
+  </main>;
+}
 
 function EthicsConsent({ onAccept }) {
   const [signedName, setSignedName] = useState('');
@@ -45,34 +46,34 @@ function EthicsConsent({ onAccept }) {
 
   return <main className="ethics-screen page-enter">
     <header className="ethics-hero">
-      <span className="eyebrow">LIVING ROUTES HK · COMMUNITY ETHICS</span>
-      <h1>Stories belong<br/>to <em>people.</em></h1>
-      <p>Before entering, please acknowledge how Living Routes HK protects community stories while using AI.</p>
+      <span className="eyebrow">{t('ethics.eyebrow')}</span>
+      <h1>{t('ethics.titleA')}<br/>{t('ethics.titleB')} <em>{t('ethics.titleEm')}</em></h1>
+      <p>{t('ethics.intro')}</p>
     </header>
 
-    <section className="ethics-list" aria-label="Our community commitments">
-      {ethicsCommitments.map((item, index) => <article key={item.title}>
+    <section className="ethics-list" aria-label={t('ethics.listLabel')}>
+      {ethicsCommitments.map((item, index) => <article key={item}>
         <span>{String(index + 1).padStart(2, '0')}</span>
-        <div><h2>{item.title} <small>{item.chinese}</small></h2><p>{item.text}</p></div>
+        <div><h2>{t(`ethics.${item}.title`)}</h2><p>{t(`ethics.${item}.text`)}</p></div>
       </article>)}
     </section>
 
     <aside className="ai-boundary">
-      <b>AI supports — people decide.</b>
-      <p>Verified history, community memory and AI-assisted interpretation remain clearly labelled. AI may transcribe, translate and adapt approved material, but publication still requires human review.</p>
+      <b>{t('ethics.aiTitle')}</b>
+      <p>{t('ethics.aiText')}</p>
     </aside>
 
     <form className="ethics-signature" onSubmit={submit}>
-      <span className="eyebrow">CONSENT ACKNOWLEDGEMENT</span>
-      <label>Name / Signature
-        <input type="text" value={signedName} onChange={(event) => setSignedName(event.target.value)} placeholder="Enter your name" autoComplete="name" required/>
+      <span className="eyebrow">{t('ethics.formEyebrow')}</span>
+      <label>{t('ethics.nameLabel')}
+        <input type="text" value={signedName} onChange={(event) => setSignedName(event.target.value)} placeholder={t('ethics.namePlaceholder')} autoComplete="name" required/>
       </label>
       <label className="ethics-check">
         <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} required/>
-        <span>I have read, understand and agree to these community commitments.</span>
+        <span>{t('ethics.agree')}</span>
       </label>
-      <button className="primary wide" disabled={!canContinue}>Acknowledge &amp; Continue <span>→</span></button>
-      <p className="ethics-note">Prototype acknowledgement only · kept in this browser session · story contributors still approve each submission separately.</p>
+      <button className="primary wide" disabled={!canContinue}>{t('ethics.continue')} <span>→</span></button>
+      <p className="ethics-note">{t('ethics.note')}</p>
     </form>
   </main>;
 }
@@ -87,39 +88,39 @@ function Onboarding({ onFinish }) {
   return <main className="onboarding page-enter">
     <div className="hero-photo" />
     <div className="onboarding-content">
-      <span className="eyebrow">LIVING ROUTES HK · 城市声线</span>
-      <h1>Discover Your<br/><em>Hong Kong</em></h1>
-      <p className="intro">Tell us what moves you. We will shape the city’s stories around your journey.</p>
+      <span className="eyebrow">{t('onb.eyebrow')}</span>
+      <h1>{t('onb.titleA')}<br/><em>{t('onb.titleEm')}</em></h1>
+      <p className="intro">{t('onb.intro')}</p>
 
       <section className="quiz-card">
         <div className="question-number">01</div>
-        <h2>Who are you?</h2>
+        <h2>{t('onb.q1')}</h2>
         <div className="chips single">
-          {identityOptions.map((item) => <button key={item.value} className={identity === item.value ? 'chip active' : 'chip'} onClick={() => setIdentity(item.value)}>{item.label}</button>)}
+          {identityOptions.map((item) => <button key={item.value} className={identity === item.value ? 'chip active' : 'chip'} onClick={() => setIdentity(item.value)}>{t(`identity.${item.value}`)}</button>)}
         </div>
-        <p className="choice-note">{selectedIdentity?.description}</p>
+        <p className="choice-note">{selectedIdentity && t(`identity.${selectedIdentity.value}.desc`)}</p>
       </section>
 
       <section className="quiz-card">
         <div className="question-number">02</div>
-        <h2>What are you interested in?</h2>
+        <h2>{t('onb.q2')}</h2>
         <div className="chips">
-          {interestOptions.map((item) => <button key={item} className={interests.includes(item) ? 'chip active' : 'chip'} onClick={() => toggle(item)}>{item}</button>)}
+          {interestOptions.map((item) => <button key={item} className={interests.includes(item) ? 'chip active' : 'chip'} onClick={() => toggle(item)}>{t(`interest.${item}`)}</button>)}
         </div>
-        <p className="choice-note">Choose one or more interests to shape the stories you hear.</p>
+        <p className="choice-note">{t('onb.q2note')}</p>
       </section>
 
-      <button className="primary wide" onClick={() => onFinish({ identity, interests })}>Start Journey <span>→</span></button>
-      <p className="privacy-note">Your interests stay on this device for this prototype.</p>
+      <button className="primary wide" onClick={() => onFinish({ identity, interests })}>{t('onb.start')} <span>→</span></button>
+      <p className="privacy-note">{t('onb.privacy')}</p>
     </div>
   </main>;
 }
 
 function BottomNav({ active, setActive }) {
   const tabs = [
-    ['map', '⌖', 'Map'],
-    ['community', '◫', 'Community'],
-    ['journal', '▤', 'Private Journal'],
+    ['map', '⌖', t('nav.map')],
+    ['community', '◫', t('nav.community')],
+    ['journal', '▤', t('nav.journal')],
   ];
   return <nav className="bottom-nav">
     {tabs.map(([id, icon, label]) => <button key={id} className={active === id ? 'nav-item active' : 'nav-item'} onClick={() => setActive(id)}>
@@ -129,9 +130,9 @@ function BottomNav({ active, setActive }) {
 }
 
 function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
-  // One story stream per stop (themed by the user's interests); community voices live on the map/Community tab.
+  // One story per stop: the reviewed, source-grounded script, shaped by the rider's interests.
   const mode = 'official';
-  const [language, setLanguage] = useState('en');
+  const [language, setLanguage] = useState(defaultNarration);
   const [progress, setProgress] = useState(0);
   const [storyResult, setStoryResult] = useState(null);
   const [trackNotice, setTrackNotice] = useState('');
@@ -149,7 +150,7 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
     if (nextLanguage === language) return;
     narrator.stop();
     setProgress(0);
-    setTrackNotice('Language changed · press play when ready');
+    setTrackNotice(t('player.langChanged'));
     setLanguage(nextLanguage);
   };
 
@@ -185,10 +186,10 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
   };
 
   const stateLabel = audioState.state === 'loading'
-    ? 'Loading audio…'
+    ? t('player.loadingAudio')
     : audioState.state === 'text-only'
-      ? 'Audio unavailable · reading text'
-      : trackNotice || (audioState.state === 'ended' ? 'Story ended' : 'Approaching Central Market');
+      ? t('player.textOnly')
+      : trackNotice || (audioState.state === 'ended' ? t('player.ended') : t('player.approaching', { place: storyResult?.place ? placeName(storyResult.place) : t('player.nextStop') }));
 
   const toggleCollapse = () => setCollapsed((c) => !c);
 
@@ -197,34 +198,34 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
       <div className="player-mini-row">
         <button className="play mini" onClick={togglePlayback} disabled={!storyResult}>{audioState.state === 'playing' ? 'Ⅱ' : '▶'}</button>
         <div className="player-mini-title" onClick={toggleCollapse}>
-          <b>{storyResult?.story.title || '讲解已就绪'}</b>
+          <b>{storyResult?.story.title || t('player.storyReady')}</b>
           <small>{stateLabel}</small>
         </div>
         <div className="mini-lang">
-          {[['en', 'EN'], ['zh-HK', '粤'], ['zh-CN', '普']].map(([code, label]) => <button key={code} className={language === code ? 'active' : ''} onClick={() => changeLanguage(code)}>{label}</button>)}
+          {[['en', 'EN'], ['zh-HK', '粵'], ['zh-CN', '普']].map(([code, label]) => <button key={code} className={language === code ? 'active' : ''} onClick={() => changeLanguage(code)} aria-label={t(`narr.${code}`)}>{label}</button>)}
         </div>
-        <button className="mini-icon" onClick={toggleCollapse} title="展开讲解">⌃</button>
-        <button className="mini-icon" onClick={onClose} title="关闭">×</button>
+        <button className="mini-icon" onClick={toggleCollapse} title={t('player.expand')} aria-label={t('player.expand')}>⌃</button>
+        <button className="mini-icon" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}>×</button>
       </div>
     ) : (
       <>
         <div className="player-head" onClick={toggleCollapse}>
           <div className="sheet-handle" />
-          <span className="eyebrow">CITYBUS 1 · CENTRAL → HAPPY VALLEY</span>
-          <h2>{storyResult?.story.title || 'Loading story…'}</h2>
+          <span className="eyebrow">{t('player.routeEyebrow')}</span>
+          <h2>{storyResult?.story.title || t('player.loadingStory')}</h2>
         </div>
-        <button className="sheet-collapse" onClick={toggleCollapse} title="收起讲解">⌄</button>
-        <button className="close" onClick={onClose}>×</button>
-        {storyResult?.story.themeLabel && <div className="theme-chip">For you · {storyResult.story.themeLabel}</div>}
-        <div className="language-toggle"><button className={language === 'en' ? 'active' : ''} onClick={() => changeLanguage('en')}>English</button><button className={language === 'zh-HK' ? 'active' : ''} onClick={() => changeLanguage('zh-HK')}>Cantonese 粤语</button><button className={language === 'zh-CN' ? 'active' : ''} onClick={() => changeLanguage('zh-CN')}>Mandarin 普通话</button></div>
-        <div className="source-line">✓ Source-grounded · every fact from the sources below</div>
-        {storyResult?.story.sourceUrls?.length > 0 && <div className="source-links">{storyResult.story.sourceUrls.map((url, index) => <a href={url} target="_blank" rel="noreferrer" key={url}>Source {index + 1}</a>)}</div>}
-        <p className="story-preview">{storyResult?.story.text || 'Loading story text…'}</p>
+        <button className="sheet-collapse" onClick={toggleCollapse} title={t('player.collapse')} aria-label={t('player.collapse')}>⌄</button>
+        <button className="close" onClick={onClose} aria-label={t('common.close')}>×</button>
+        {storyResult?.story.themeLabel && <div className="theme-chip">{t('player.forYou', { theme: storyResult.story.themeLabel })}</div>}
+        <div className="language-toggle"><button className={language === 'en' ? 'active' : ''} onClick={() => changeLanguage('en')}>{t('narr.en')}</button><button className={language === 'zh-HK' ? 'active' : ''} onClick={() => changeLanguage('zh-HK')}>{t('narr.zh-HK')}</button><button className={language === 'zh-CN' ? 'active' : ''} onClick={() => changeLanguage('zh-CN')}>{t('narr.zh-CN')}</button></div>
+        <div className="source-line">{t('player.sourceLine')}{profile?.interests?.length ? t('player.shapedFor', { interests: profile.interests.map((item) => t(`interest.${item}`)).join(' + ') }) : ''}</div>
+        {storyResult?.story.sourceUrls?.length > 0 && <div className="source-links">{storyResult.story.sourceUrls.map((url, index) => <a href={url} target="_blank" rel="noreferrer" key={url}>{t('player.source', { n: index + 1 })}</a>)}</div>}
+        <p className="story-preview">{storyResult?.story.text || t('player.loadingText')}</p>
         <div className="player-row">
           <button className="play" onClick={togglePlayback} disabled={!storyResult}>{audioState.state === 'playing' ? 'Ⅱ' : '▶'}</button>
-          <div className="progress-wrap"><div className="progress"><span style={{ width: `${progress}%` }} /></div><div className="time"><span>{stateLabel}{audioState.mode ? ` · ${audioState.mode}` : ''}</span><span>{storyResult?.story.durationSec || 30}s story</span></div></div>
+          <div className="progress-wrap"><div className="progress"><span style={{ width: `${progress}%` }} /></div><div className="time"><span>{stateLabel}</span><span>{t('player.storySec', { n: storyResult?.story.durationSec || 30 })}</span></div></div>
         </div>
-        <div className="stops"><span className="done">Macao Ferry</span><span className="current">Central Market</span><span>Wan Chai</span><span>Happy Valley</span></div>
+        <div className="stops"><span className="done">{t('stops.macao')}</span><span className="current">{t('stops.market')}</span><span>{t('stops.wanchai')}</span><span>{t('stops.hv')}</span></div>
       </>
     )}
   </div>;
@@ -259,31 +260,31 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
 
   return <div className="place-posts-sheet page-enter">
     <div className="sheet-handle" />
-    <button className="close" onClick={onClose}>×</button>
-    {place.image?.url && <div className="place-hero"><img src={place.image.url} alt={place.image.alt || place.nameZh} />{place.image.credit && <small>© {place.image.credit}</small>}</div>}
-    <span className="eyebrow">COMMUNITY MEMORY · 社区记忆</span>
-    <h2>{place.nameZh} <small>{place.nameEn}</small></h2>
+    <button className="close" onClick={onClose} aria-label={t('common.close')}>×</button>
+    {place.image?.url && <div className="place-hero"><img src={place.image.url} alt={placeName(place)} />{place.image.credit && <small>© {place.image.credit}</small>}</div>}
+    <span className="eyebrow">{t('posts.eyebrow')}</span>
+    <h2>{placeName(place)}</h2>
     {posts.length === 0 ? (
-      <p className="posts-empty">这里还没有社区投稿，成为第一个留下脚印的人。</p>
+      <p className="posts-empty">{t('posts.empty')}</p>
     ) : (
       <div className="place-posts-list">
-        {posts.map((post) => <article className="post-card" key={post.id}><div className="post-copy"><small>⌖ {post.place}</small><p>{post.text}</p><b>{post.author}</b></div></article>)}
+        {posts.map((post) => <article className="post-card" key={post.id}><div className="post-copy"><small>⌖ {postPlace(post)}</small><p>{postText(post)}</p><b>{postAuthor(post)}</b></div></article>)}
       </div>
     )}
     {composing ? (
       <form className="compose-inline" onSubmit={submitPost}>
-        <label className="inline-label">你的社区记忆
-          <textarea name="memory" required placeholder="这个地方对你意味着什么？" />
+        <label className="inline-label">{t('posts.label')}
+          <textarea name="memory" required placeholder={t('posts.placeholder')} />
         </label>
-        <label className="upload">＋ Add a photo <input type="file" name="photo" accept="image/*" /></label>
-        <label className="consent-row"><input type="checkbox" name="consent" /> Allow this post to be considered for AI curation</label>
+        <label className="upload">{t('posts.addPhoto')} <input type="file" name="photo" accept="image/*" /></label>
+        <label className="consent-row"><input type="checkbox" name="consent" /> {t('posts.consentAi')}</label>
         <div className="inline-actions">
-          <button type="button" className="secondary" onClick={() => setComposing(false)}>取消</button>
-          <button className="primary" type="submit">投稿</button>
+          <button type="button" className="secondary" onClick={() => setComposing(false)}>{t('common.cancel')}</button>
+          <button className="primary" type="submit">{t('posts.submit')}</button>
         </div>
       </form>
     ) : (
-      <button className="primary wide" onClick={() => setComposing(true)}>＋ Post here</button>
+      <button className="primary wide" onClick={() => setComposing(true)}>{t('posts.postHere')}</button>
     )}
   </div>;
 }
@@ -294,7 +295,7 @@ function DemoNarration({ segment, profile }) {
   const fastSec = Math.max(1, Math.round(distanceM / (45 / 3.6)));   // 左：快 + 建筑
   const slowSec = Math.max(1, Math.round(distanceM / (10 / 3.6)));   // 右：慢 + 美食
   const normalSec = Math.max(1, Math.round(distanceM / (30 / 3.6))); // 试乘实际车速，用于中文单条讲解
-  const [language, setLanguage] = useState('en');
+  const [language, setLanguage] = useState(defaultNarration);
   const [collapsed, setCollapsed] = useState(false);
   const [left, setLeft] = useState(null);
   const [right, setRight] = useState(null);
@@ -372,17 +373,17 @@ function DemoNarration({ segment, profile }) {
   const renderCol = (result, side, tone) => (
     <div className={`compare-col ${tone}`}>
       <div className="compare-col-head">
-        <b>{side === 'left' ? '🚀 Fast · 45 km/h' : '🐢 Slow · 10 km/h'}</b>
-        <span className="compare-persona">{side === 'left' ? '👤 Architecture lover' : '👤 Food lover'}</span>
+        <b>{side === 'left' ? t('demo.fast') : t('demo.slow')}</b>
+        <span className="compare-persona">{side === 'left' ? t('demo.archLover') : t('demo.foodLover')}</span>
       </div>
       <div className="compare-metrics">
-        <span>{distanceM} m · {result ? `${result.sec}s to next stop` : '…'}</span>
-        <em>{result ? `${(result.story?.length || '').toUpperCase()} · ${result.story?.durationSec ?? '…'}s audio` : '…'}</em>
+        <span>{result ? t('demo.toNext', { m: distanceM, s: result.sec }) : '…'}</span>
+        <em>{result ? t('demo.audio', { len: result.story?.length ? t(`len.${result.story.length}`) : '', s: result.story?.durationSec ?? '…' }) : '…'}</em>
       </div>
-      {result?.story?.hookText && <div className={`compare-hook ${tone}`}><small>🎯 INTEREST-INJECTED</small>{result.story.hookText}</div>}
-      <p className="compare-base">{result?.story?.baseText || 'Preparing…'}</p>
+      {result?.story?.hookText && <div className={`compare-hook ${tone}`}><small>{t('demo.injected')}</small>{result.story.hookText}</div>}
+      <p className="compare-base">{result?.story?.baseText || t('demo.preparing')}</p>
       <button className={`compare-play ${playing === side ? 'is-on' : ''}`} onClick={() => playSide(side, result)} disabled={!result}>
-        {playing === side ? 'Ⅱ Stop' : '▶ Listen'}
+        {playing === side ? t('common.stop') : t('common.listen')}
       </button>
     </div>
   );
@@ -392,23 +393,23 @@ function DemoNarration({ segment, profile }) {
       <div className="player-mini-row">
         <button className="play mini" onClick={(e) => { e.stopPropagation(); togglePlay(); }} disabled={!activeStory}>{playing ? 'Ⅱ' : '▶'}</button>
         <div className="player-mini-title">
-          <b>{segment.to.nameZh} · {segment.to.nameEn}</b>
-          <small>{language === 'en' ? 'English · Speed comparison' : language === 'zh-HK' ? 'Cantonese 粤语' : 'Mandarin 普通话'}</small>
+          <b>{placeName(segment.to)}</b>
+          <small>{language === 'en' ? t('demo.speedCompare') : t(`narr.${language}`)}</small>
         </div>
-        <button className="mini-icon" title="展开" onClick={(e) => { e.stopPropagation(); toggleCollapse(); }}>⌃</button>
+        <button className="mini-icon" title={t('common.expand')} aria-label={t('common.expand')} onClick={(e) => { e.stopPropagation(); toggleCollapse(); }}>⌃</button>
       </div>
     </div>;
   }
 
   return <div className="speed-compare page-enter">
     <div className="sheet-handle" />
-    <button className="sheet-collapse" onClick={toggleCollapse} title="收起讲解">⌄</button>
+    <button className="sheet-collapse" onClick={toggleCollapse} title={t('player.collapse')} aria-label={t('player.collapse')}>⌄</button>
     <div className="language-toggle">
-      <button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>English</button>
-      <button className={language === 'zh-HK' ? 'active' : ''} onClick={() => setLanguage('zh-HK')}>Cantonese 粤语</button>
-      <button className={language === 'zh-CN' ? 'active' : ''} onClick={() => setLanguage('zh-CN')}>Mandarin 普通话</button>
+      <button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>{t('narr.en')}</button>
+      <button className={language === 'zh-HK' ? 'active' : ''} onClick={() => setLanguage('zh-HK')}>{t('narr.zh-HK')}</button>
+      <button className={language === 'zh-CN' ? 'active' : ''} onClick={() => setLanguage('zh-CN')}>{t('narr.zh-CN')}</button>
     </div>
-    <span className="eyebrow">AI ADAPTATION · approaching {segment.to.nameZh} ({segment.to.nameEn})</span>
+    <span className="eyebrow">{t('demo.eyebrow', { place: placeName(segment.to) })}</span>
     {language === 'en' ? (
       <div className="compare-cols">
         {renderCol(left, 'left', 'fast')}
@@ -416,17 +417,17 @@ function DemoNarration({ segment, profile }) {
       </div>
     ) : (
       <div className="compare-single">
-        <p className="compare-base">{single?.story?.text || '正在加载讲解…'}</p>
+        <p className="compare-base">{single?.story?.text || t('player.loadingStory')}</p>
         <button className={`compare-play ${playing === 'single' ? 'is-on' : ''}`} onClick={() => playSide('single', single)} disabled={!single}>
-          {playing === 'single' ? 'Ⅱ 停止' : '▶ 播放'}
+          {playing === 'single' ? t('common.stop') : t('common.listen')}
         </button>
       </div>
     )}
-    {language === 'en' && <p className="compare-note">Same stop, two riders: speed sets the length, interest shapes the detail.</p>}
+    {language === 'en' && <p className="compare-note">{t('demo.note')}</p>}
   </div>;
 }
 
-function MapScreen({ profile, onPostAdded }) {
+function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
   const [destination, setDestination] = useState('');
   const [route, setRoute] = useState(null);
   const [playerOpen, setPlayerOpen] = useState(false);
@@ -449,7 +450,7 @@ function MapScreen({ profile, onPostAdded }) {
 
   const submit = async (event) => {
     event.preventDefault();
-    const requestedDestination = destination.trim() || 'Happy Valley';
+    const requestedDestination = destination.trim() || t('stops.hv');
     setDestination(requestedDestination);
     setLoading(true);
     const nextRoute = await getRoute({ destination: requestedDestination, mode: 'demo' });
@@ -472,31 +473,31 @@ function MapScreen({ profile, onPostAdded }) {
   return <section className={`screen map-screen page-enter ${chromeCollapsed ? 'chrome-collapsed' : ''}`}>
     <div className="map-canvas"><MapView route={route} mode={mode} onArrive={handleArrive} onSelectPlace={setPostsPlace} onSegmentChange={setSegment} onNearbyPlace={setNearbyPlace} onDemoingChange={setDemoing} /></div>
     <div className="mode-switch">
-      <button className={mode === 'bus' ? 'active' : ''} onClick={() => setMode('bus')}>Bus Tour</button>
-      <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>Walk &amp; Community</button>
+      <button className={mode === 'bus' ? 'active' : ''} onClick={() => setMode('bus')}>{t('map.busTour')}</button>
+      <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>{t('map.walk')}</button>
     </div>
     {nearbyPlace && (
       <button className="nearby-toast" onClick={() => setPostsPlace(nearbyPlace)}>
-        <b>📍 你已到 {nearbyPlace.nameZh}</b>
-        <span>点击查看社区 · {nearbyPlace.nameEn}</span>
+        <b>{t('map.nearbyTitle', { place: placeName(nearbyPlace) })}</b>
+        <span>{t('map.nearbySub')}</span>
       </button>
     )}
     {chromeCollapsed ? (
       <button className="chrome-mini" onClick={() => setChromeCollapsed(false)}>
-        <span className="brand-mark chrome-mini-mark">LR</span><b>展开</b>
+        <span className="brand-mark chrome-mini-mark">LR</span><b>{t('map.show')}</b>
       </button>
     ) : (
       <>
-        <header className="floating-header"><span className="brand-mark">LR</span><div><b>Living Routes</b><small>Hong Kong · 香港</small></div><button className="avatar">JJ</button><button className="chrome-close" onClick={() => setChromeCollapsed(true)} title="收起顶部栏">⌃</button></header>
-        <form className="route-search" onSubmit={submit}><span>⌕</span><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Enter destination…"/><button type="submit">Route</button></form>
+        <header className="floating-header"><span className="brand-mark">LR</span><div><b>Living Routes</b><small>{t('brand.small')}</small></div><button className="avatar lang-button" onClick={onChangeLanguage} title={t('common.changeLanguage')} aria-label={t('common.changeLanguage')}>{({ en: 'EN', 'zh-HK': '繁', 'zh-CN': '简' })[getLanguage()]}</button><button className="chrome-close" onClick={() => setChromeCollapsed(true)} title={t('map.hideHeader')} aria-label={t('map.hideHeader')}>⌃</button></header>
+        <form className="route-search" onSubmit={submit}><span>⌕</span><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder={t('map.destPlaceholder')}/><button type="submit">{t('map.routeBtn')}</button></form>
       </>
     )}
-    {loading && <div className="map-hint"><b>Preparing Route 1…</b><span>Plotting your story route.</span></div>}
+    {loading && <div className="map-hint"><b>{t('map.preparing')}</b><span>{t('map.plotting')}</span></div>}
     {searched && route && !playerOpen && <div className="route-card page-enter">
-      <div className="sheet-handle"/><span className="eyebrow">AI STORY TRACK READY · CITYBUS 1</span><h2>{route.origin} → {route.destination}</h2>
-      <div className="route-stats"><div><b>{route.estimatedDurationMin} min</b><span>Journey</span></div><div><b>{route.storyPoints.length}</b><span>Heritage points</span></div><div><b>3</b><span>Story types</span></div></div>
-      <p>Story length is adapted to your travel time and interests.</p>
-      <button className="primary wide" onClick={() => setPlayerOpen(true)}>Begin Route <span>▶</span></button>
+      <div className="sheet-handle"/><span className="eyebrow">{t('route.eyebrow')}</span><h2>{routeTitle()}</h2>
+      <div className="route-stats"><div><b>{t('route.min', { n: route.estimatedDurationMin })}</b><span>{t('route.journey')}</span></div><div><b>{route.storyPoints.length}</b><span>{t('route.points')}</span></div><div><b>3</b><span>{t('route.languages')}</span></div></div>
+      <p>{t('route.note')}</p>
+      <button className="primary wide" onClick={() => setPlayerOpen(true)}>{t('route.begin')} <span>▶</span></button>
     </div>}
     {playerOpen && <PlayerSheet profile={profile} placeId={currentPlaceId} remainingTimeSec={timeToNextSec} onClose={() => setPlayerOpen(false)} />}
     {segment && mode === 'bus' && demoing && <DemoNarration segment={segment} profile={profile} />}
@@ -504,19 +505,13 @@ function MapScreen({ profile, onPostAdded }) {
   </section>;
 }
 
-const photoStyles = [
-  ['original', 'Original'],
-  ['cartoon', 'Cartoon'],
-  ['cyberpunk', 'Cyberpunk'],
-  ['pencil', 'Colour Pencil'],
-  ['none', 'No Photo'],
-];
+const photoStyles = ['original', 'cartoon', 'cyberpunk', 'pencil', 'none'];
 
 function PhotoStylePicker({ name = 'photoStyle', value = 'original', onChange }) {
   return <fieldset className="style-picker">
-    <legend>Photo appearance</legend>
-    <div>{photoStyles.map(([option, label]) => <label key={option}><input type="radio" name={name} value={option} checked={value === option} onChange={() => onChange(option)}/><span>{label}</span></label>)}</div>
-    <small>Artistic treatments are created on this device and do not provide identity protection.</small>
+    <legend>{t('style.legend')}</legend>
+    <div>{photoStyles.map((option) => <label key={option}><input type="radio" name={name} value={option} checked={value === option} onChange={() => onChange(option)}/><span>{t(`style.${option}`)}</span></label>)}</div>
+    <small>{t('style.note')}</small>
   </fieldset>;
 }
 
@@ -542,7 +537,7 @@ function PhotoUpload({ name = 'photo', large = false, photoStyle = 'original' })
     setPreviewBusy(true);
     applyPhotoStyle(sourcePreview, photoStyle)
       .then((result) => { if (!cancelled) setPreview(result || sourcePreview); })
-      .catch(() => { if (!cancelled) setError('Style preview unavailable; the original photo is still selected.'); })
+      .catch(() => { if (!cancelled) setError(t('upload.errStyle')); })
       .finally(() => { if (!cancelled) setPreviewBusy(false); });
     return () => { cancelled = true; };
   }, [photoStyle, sourcePreview]);
@@ -559,26 +554,26 @@ function PhotoUpload({ name = 'photo', large = false, photoStyle = 'original' })
       || /\.(jpe?g|png|webp)$/i.test(file.name);
     if (!supported) {
       event.target.value = '';
-      setError('Please choose a JPG, PNG or WebP image.');
+      setError(t('upload.errType'));
       return;
     }
     if (file.size > 12 * 1024 * 1024) {
       event.target.value = '';
-      setError('Maximum photo size is 12 MB.');
+      setError(t('upload.errSize'));
       return;
     }
 
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => setSourcePreview(reader.result);
-    reader.onerror = () => setError('This photo could not be previewed.');
+    reader.onerror = () => setError(t('upload.errPreview'));
     reader.readAsDataURL(file);
   };
 
   return <label className={`upload photo-upload ${large ? 'large' : ''}`}>
-    {preview ? <img className={`photo-style-${photoStyle}`} src={preview} alt="Selected preview"/> : <span className="upload-plus">＋</span>}
-    <b>{fileName || (large ? 'Add a journey photo' : 'Add a photo')}</b>
-    <small>{error || (previewBusy ? 'Preparing style preview…' : photoStyle === 'none' && fileName ? 'Photo hidden · choose another style to preview' : fileName ? `${photoStyles.find(([value]) => value === photoStyle)?.[1]} preview · tap to replace` : 'JPG, PNG or WebP · up to 12 MB')}</small>
+    {preview ? <img className={`photo-style-${photoStyle}`} src={preview} alt={t('upload.alt')}/> : <span className="upload-plus">＋</span>}
+    <b>{fileName || (large ? t('upload.addLarge') : t('upload.add'))}</b>
+    <small>{error || (previewBusy ? t('upload.preparing') : photoStyle === 'none' && fileName ? t('upload.hidden') : fileName ? t('upload.previewReplace', { style: t(`style.${photoStyle}`) }) : t('upload.formats'))}</small>
     <input type="file" name={name} accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={choosePhoto}/>
   </label>;
 }
@@ -591,7 +586,7 @@ function ExpandableText({ children, compact = false }) {
   return <div className={`expandable-copy ${expanded ? 'expanded' : ''}`}>
     <p>{text}</p>
     {needsToggle && <button type="button" onClick={() => setExpanded((current) => !current)} aria-expanded={expanded}>
-      {expanded ? 'Show less' : 'Read more'}
+      {expanded ? t('common.showLess') : t('common.readMore')}
     </button>}
   </div>;
 }
@@ -605,11 +600,11 @@ function DeletePostButton({ onDelete }) {
     await onDelete();
   };
 
-  if (!confirming) return <button type="button" className="delete-post" onClick={() => setConfirming(true)}>Delete</button>;
+  if (!confirming) return <button type="button" className="delete-post" onClick={() => setConfirming(true)}>{t('del.delete')}</button>;
   return <div className="delete-confirm">
-    <span>Delete permanently?</span>
-    <button type="button" onClick={remove} disabled={deleting}>{deleting ? 'Deleting…' : 'Yes, delete'}</button>
-    <button type="button" onClick={() => setConfirming(false)} disabled={deleting}>Cancel</button>
+    <span>{t('del.confirm')}</span>
+    <button type="button" onClick={remove} disabled={deleting}>{deleting ? t('del.deleting') : t('del.yes')}</button>
+    <button type="button" onClick={() => setConfirming(false)} disabled={deleting}>{t('common.cancel')}</button>
   </div>;
 }
 
@@ -646,16 +641,16 @@ function CommunityScreen({ profile, onPostAdded }) {
         consent: form.get('consent') === 'on',
         visibility: form.get('visibility'),
         photoStyle: form.get('photoStyle'),
-        author: profile?.ethicsConsent?.signedName || 'You · Prototype user',
+        author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
       });
       if (created.visibility === 'community') setPosts((current) => [created, ...current]);
       setSavedNotice(created.visibility === 'community'
-        ? 'Posted to Community · pending human review'
-        : 'Saved privately · available in Private Journal');
+        ? t('comm.postedPending')
+        : t('comm.savedPrivate'));
       setComposer(false);
       onPostAdded?.();
     } catch (error) {
-      setSavedNotice(`Photo not saved · ${error.message}`);
+      setSavedNotice(t('comm.photoNotSaved', { msg: error.message }));
     }
   };
 
@@ -678,34 +673,34 @@ function CommunityScreen({ profile, onPostAdded }) {
   const removePost = async (id) => {
     await deletePost(id);
     setPosts((current) => current.filter((post) => post.id !== id));
-    setSavedNotice('Post deleted from this device');
+    setSavedNotice(t('comm.deleted'));
   };
 
   return <section className="screen community-screen page-enter">
-    <header className="section-header"><span className="eyebrow">THE CITY REMEMBERS</span><h1>Community</h1><p>New footsteps meet stories passed down through generations.</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}<button className="voice-demo-trigger" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>♩ Try voice-note curation demo</button></header>
-    <div className="segmented"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All stories</button><button className={filter === 'tourist' ? 'active' : ''} onClick={() => setFilter('tourist')}>Tourist Footprints</button><button className={filter === 'local' ? 'active' : ''} onClick={() => setFilter('local')}>Local Legends</button></div>
-    <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={post.place}/> : <div className="post-image-placeholder"><b>{post.place}</b><small>PHOTO NOT PROVIDED</small></div>}<span>{post.era}</span></div><div className="post-copy"><small>⌖ {post.place}</small><ExpandableText>{post.text}</ExpandableText><b>{post.author}</b>{post.createdAt && <DeletePostButton onDelete={() => removePost(post.id)}/>}</div></article>)}</div>
+    <header className="section-header"><span className="eyebrow">{t('comm.eyebrow')}</span><h1>{t('comm.title')}</h1><p>{t('comm.intro')}</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}<button className="voice-demo-trigger" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button></header>
+    <div className="segmented"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>{t('comm.all')}</button><button className={filter === 'tourist' ? 'active' : ''} onClick={() => setFilter('tourist')}>{t('comm.tourist')}</button><button className={filter === 'local' ? 'active' : ''} onClick={() => setFilter('local')}>{t('comm.local')}</button></div>
+    <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={postPlace(post)}/> : <div className="post-image-placeholder"><b>{postPlace(post)}</b><small>{t('comm.photoMissing')}</small></div>}<span>{post.era ? t(`era.${post.era}`) : ''}</span></div><div className="post-copy"><small>⌖ {postPlace(post)}</small><ExpandableText>{postText(post)}</ExpandableText><b>{postAuthor(post)}</b>{post.createdAt && <DeletePostButton onDelete={() => removePost(post.id)}/>}</div></article>)}</div>
     <button className="fab" onClick={() => { setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposer(true); }}>＋</button>
-    {composer && <div className="modal-backdrop"><form className="compose-card memory-compose" onSubmit={submitPost}><button type="button" className="close" onClick={() => setComposer(false)}>×</button><span className="eyebrow">CREATE A MEMORY POST</span><h2>Add to your journey</h2><label>Place<input name="place" placeholder="e.g. central-market"/></label><label>Your story<textarea name="memory" required placeholder="What happened here?"/></label><PhotoUpload photoStyle={composerPhotoStyle}/><PhotoStylePicker value={composerPhotoStyle} onChange={setComposerPhotoStyle}/><fieldset className="visibility-picker"><legend>Who can see this?</legend><div><label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>Only me<small>Private Journal</small></span></label><label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>Community<small>Pending review</small></span></label></div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> Allow AI-assisted curation after review</label><button className="primary wide">{composerVisibility === 'community' ? 'Post to Community' : 'Save to Private Journal'}</button></form></div>}
-    {voiceDemo && <div className="modal-backdrop"><div className="compose-card voice-card"><button type="button" className="close" onClick={() => setVoiceDemo(false)}>×</button>{!voiceResult ? <><span className="eyebrow">VOICE NOTE → STORY</span><h2>Turn a Cantonese voice note into a story</h2><p className="modal-intro">Demo mode: this represents a WhatsApp voice note. The audio stays local; the pipeline shows transcription, story drafting and review routing.</p><form onSubmit={submitVoice}><label>Place<select name="voicePlace" defaultValue="blue-house"><option value="blue-house">Blue House</option><option value="lee-tung-street">Lee Tung Street</option><option value="central-market">Central Market</option></select></label><label className="upload">＋ Add a voice note <input type="file" name="voice" accept="audio/*"/><small>Optional · use the built-in reviewed sample if left empty</small></label><label>Transcript fallback <textarea name="voiceTranscript" placeholder="Optional: paste a Cantonese transcript for the demo."/></label><div className="voice-consents"><label className="consent-row"><input type="checkbox" name="voiceConsent"/> I have permission for AI transcription and story curation</label><label className="consent-row"><input type="checkbox" name="voiceReplicaConsent"/> The speaker separately agrees to an AI replica of their voice for approved scripts</label><small>Voice replication is optional, revocable and not generated in this prototype.</small></div><button className="primary wide" disabled={voiceLoading}>{voiceLoading ? 'Processing voice note…' : 'Run curation pipeline →'}</button></form></> : <VoiceResult result={voiceResult} onReset={() => setVoiceResult(null)} />}</div></div>}
+    {composer && <div className="modal-backdrop"><form className="compose-card memory-compose" onSubmit={submitPost}><button type="button" className="close" onClick={() => setComposer(false)}>×</button><span className="eyebrow">{t('comp.eyebrow')}</span><h2>{t('comp.title')}</h2><label>{t('comp.place')}<input name="place" placeholder={t('comp.placePlaceholder')}/></label><label>{t('comp.story')}<textarea name="memory" required placeholder={t('comp.storyPlaceholder')}/></label><PhotoUpload photoStyle={composerPhotoStyle}/><PhotoStylePicker value={composerPhotoStyle} onChange={setComposerPhotoStyle}/><fieldset className="visibility-picker"><legend>{t('comp.visibility')}</legend><div><label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label><label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label></div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> {t('comp.consent')}</label><button className="primary wide">{composerVisibility === 'community' ? t('comp.postBtn') : t('comp.saveBtn')}</button></form></div>}
+    {voiceDemo && <div className="modal-backdrop"><div className="compose-card voice-card"><button type="button" className="close" onClick={() => setVoiceDemo(false)}>×</button>{!voiceResult ? <><span className="eyebrow">{t('voice.eyebrow')}</span><h2>{t('voice.title')}</h2><p className="modal-intro">{t('voice.intro')}</p><form onSubmit={submitVoice}><label>{t('voice.place')}<select name="voicePlace" defaultValue="blue-house">{['blue-house', 'lee-tung-street', 'central-market'].map((id) => <option key={id} value={id}>{placeName(getPlaceById(id))}</option>)}</select></label><label className="upload">{t('voice.add')} <input type="file" name="voice" accept="audio/*"/><small>{t('voice.optional')}</small></label><label>{t('voice.transcript')} <textarea name="voiceTranscript" placeholder={t('voice.transcriptPh')}/></label><div className="voice-consents"><label className="consent-row"><input type="checkbox" name="voiceConsent"/> {t('voice.consent')}</label><label className="consent-row"><input type="checkbox" name="voiceReplicaConsent"/> {t('voice.replica')}</label><small>{t('voice.replicaNote')}</small></div><button className="primary wide" disabled={voiceLoading}>{voiceLoading ? t('voice.processing') : t('voice.run')}</button></form></> : <VoiceResult result={voiceResult} onReset={() => setVoiceResult(null)} />}</div></div>}
   </section>;
 }
 
 function VoiceResult({ result, onReset }) {
   const draft = result.generatedStory.languages;
   const [language, setLanguage] = useState('zh-HK');
-  const languageLabels = { 'zh-HK': '粵語', 'zh-CN': '普通話', en: 'English' };
+  const languageLabels = { 'zh-HK': t('narr.zh-HK'), 'zh-CN': t('narr.zh-CN'), en: t('narr.en') };
   return <div className="voice-result page-enter">
-    <span className="eyebrow">PIPELINE COMPLETE · DEMO MODE</span>
+    <span className="eyebrow">{t('vr.eyebrow')}</span>
     <h2>{draft['zh-HK'].title}</h2>
-    <div className="pipeline-steps"><span>✓ Transcribe</span><span>✓ Structure</span><span>✓ Draft 3 languages</span><span>! Human review</span></div>
-    <div className="result-block"><small>TRANSCRIPT · {result.transcription.language} · {result.transcription.method === 'user-provided-transcript' ? 'USER PROVIDED' : 'DEMO FALLBACK'}</small><p>{result.transcription.text}</p><b>{Math.round(result.transcription.confidence * 100)}% confidence · {result.input.fileName}</b></div>
-    {result.input.voicePreviewUrl && <div className="voice-recording"><small>ORIGINAL VOICE NOTE · PLAYBACK</small><audio controls src={result.input.voicePreviewUrl} /></div>}
-    <div className="voice-permission"><small>AI VOICE REPLICA</small><b>{result.voiceOutput.replicaConsent ? 'Separate consent recorded · integration pending' : 'Not authorised · use the original recording or a neutral narrator'}</b><span>No cloned audio is created in this prototype.</span></div>
-    <div className="result-block"><small>EXTRACTED SIGNALS</small><p>{result.extraction.themes.join(' · ')}</p><b>{result.extraction.factCheckNote}</b></div>
+    <div className="pipeline-steps"><span>{t('vr.step1')}</span><span>{t('vr.step2')}</span><span>{t('vr.step3')}</span><span>{t('vr.step4')}</span></div>
+    <div className="result-block"><small>{t('vr.transcript')} · {result.transcription.language} · {result.transcription.method === 'user-provided-transcript' ? t('vr.userProvided') : t('vr.demoFallback')}</small><p>{result.transcription.text}</p><b>{t('vr.confidence', { n: Math.round(result.transcription.confidence * 100) })} · {result.input.fileName}</b></div>
+    {result.input.voicePreviewUrl && <div className="voice-recording"><small>{t('vr.original')}</small><audio controls src={result.input.voicePreviewUrl} /></div>}
+    <div className="voice-permission"><small>{t('vr.replicaLabel')}</small><b>{result.voiceOutput.replicaConsent ? t('vr.replicaYes') : t('vr.replicaNo')}</b><span>{t('vr.noClone')}</span></div>
+    <div className="result-block"><small>{t('vr.signals')}</small><p>{result.extraction.themes.join(' · ')}</p><b>{result.extraction.factCheckNote}</b></div>
     <div className="language-preview">{Object.entries(languageLabels).map(([code, label]) => <button key={code} className={language === code ? 'active' : ''} onClick={() => setLanguage(code)}>{label}</button>)}<p><b>{draft[language].title}</b><br/>{draft[language].text}</p></div>
-    <div className="review-callout"><b>Next: {result.moderation.route}</b><span>{result.moderation.reason}</span></div>
-    <button className="secondary wide" onClick={onReset}>Process another sample</button>
+    <div className="review-callout"><b>{t('vr.next', { route: result.moderation.route })}</b><span>{result.moderation.reason}</span></div>
+    <button className="secondary wide" onClick={onReset}>{t('vr.again')}</button>
   </div>;
 }
 
@@ -730,11 +725,11 @@ function JournalScreen({ profile }) {
     try {
       const created = await addPost({
         photo: file?.size && form.get('journalPhotoStyle') !== 'none' ? file : undefined,
-        text: form.get('text') || 'A quiet moment between stops.',
+        text: form.get('text') || t('jr.defaultText'),
         location: form.get('place'),
         visibility: 'private',
         photoStyle: form.get('journalPhotoStyle'),
-        author: profile?.ethicsConsent?.signedName || 'You · Prototype user',
+        author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
       });
       setMemories((current) => [created, ...current]);
       formElement.reset();
@@ -759,16 +754,18 @@ function JournalScreen({ profile }) {
   };
 
   return <section className="screen journal-screen page-enter">
-    <div className="private-banner">▣ <b>Private · Only you can see this</b></div>
-    <header className="section-header"><span className="eyebrow">YOUR TIME-WOVEN JOURNEY</span><h1>Private Journal</h1><p>Gather fragments now. Let AI weave them into a story when the journey ends.</p></header>
-    <form className="memory-form" onSubmit={addMemory}><PhotoUpload key={uploadKey} large photoStyle={journalPhotoStyle}/><PhotoStylePicker name="journalPhotoStyle" value={journalPhotoStyle} onChange={setJournalPhotoStyle}/><div className="form-row"><input name="place" placeholder="Place"/><textarea name="text" placeholder="What did this moment feel like?"/></div><button className="secondary">Save Memory</button></form>
-    {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}<div><small>{memory.place} · {memory.visibility === 'community' ? 'Community' : 'Only me'}</small><ExpandableText compact>{memory.text}</ExpandableText><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></article>)}</div>}
-    <button className="generate-button" onClick={generate} disabled={loading}>✦ {loading ? 'Weaving your memories…' : 'Generate AI Journey Log'}</button>
-    {generated && <div className="generated-log page-enter"><span className="eyebrow">GENERATED FROM YOUR ROUTE + MEMORIES</span><h2>{generated.title}</h2>{generated.chapters.map((chapter) => <div className="chapter" key={chapter.id}><i>{String(chapter.order).padStart(2, '0')}</i><div><small>{chapter.place.toUpperCase()} · {chapter.time}</small><h3>{chapter.title}</h3><p>{chapter.text}</p></div></div>)}<div className="profile-update"><small>YOUR PROFILE LEARNED</small><b>{generated.interestSignals.map((signal) => signal.label).join(' · ')}</b><p>Next recommendation: {generated.nextRecommendation.label}</p><span>{generated.nextRecommendation.reason}</span></div><button className="secondary wide">Export Memory Story</button></div>}
+    <div className="private-banner">▣ <b>{t('jr.private')}</b></div>
+    <header className="section-header"><span className="eyebrow">{t('jr.eyebrow')}</span><h1>{t('jr.title')}</h1><p>{t('jr.intro')}</p></header>
+    <form className="memory-form" onSubmit={addMemory}><PhotoUpload key={uploadKey} large photoStyle={journalPhotoStyle}/><PhotoStylePicker name="journalPhotoStyle" value={journalPhotoStyle} onChange={setJournalPhotoStyle}/><div className="form-row"><input name="place" placeholder={t('jr.placePh')}/><textarea name="text" placeholder={t('jr.textPh')}/></div><button className="secondary">{t('jr.save')}</button></form>
+    {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}<div><small>{memory.place} · {memory.visibility === 'community' ? t('jr.community') : t('jr.onlyMe')}</small><ExpandableText compact>{memory.text}</ExpandableText><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></article>)}</div>}
+    <button className="generate-button" onClick={generate} disabled={loading}>✦ {loading ? t('jr.weaving') : t('jr.generate')}</button>
+    {generated && <div className="generated-log page-enter"><span className="eyebrow">{t('jr.genEyebrow')}</span><h2>{generated.title}</h2>{generated.chapters.map((chapter) => <div className="chapter" key={chapter.id}><i>{String(chapter.order).padStart(2, '0')}</i><div><small>{chapter.place.toUpperCase()} · {chapter.time}</small><h3>{chapter.title}</h3><p>{chapter.text}</p></div></div>)}<div className="profile-update"><small>{t('jr.learned')}</small><b>{generated.interestSignals.map((signal) => signal.label).join(' · ')}</b><p>{t('jr.nextRec', { x: generated.nextRecommendation.label })}</p><span>{generated.nextRecommendation.reason}</span></div><button className="secondary wide">{t('jr.export')}</button></div>}
   </section>;
 }
 
 export default function App() {
+  const [uiLanguage, setUiLanguageState] = useState(null);
+  const [pickingLanguage, setPickingLanguage] = useState(false);
   const [ethicsConsent, setEthicsConsent] = useState(null);
   const [profile, setProfile] = useState(null);
   const [active, setActive] = useState('map');
@@ -786,12 +783,17 @@ export default function App() {
     [profile, interestProfile],
   );
 
+  // Set before any child renders so t() reads the chosen language.
+  setUiLanguage(uiLanguage);
+  const pickLanguage = (code) => { setUiLanguage(code); setUiLanguageState(code); setPickingLanguage(false); };
+
   const content = useMemo(() => ({
-    map: <MapScreen profile={fullProfile} onPostAdded={refreshMyPosts} />,
+    map: <MapScreen profile={fullProfile} onPostAdded={refreshMyPosts} onChangeLanguage={() => setPickingLanguage(true)} />,
     community: <CommunityScreen profile={fullProfile} onPostAdded={refreshMyPosts} />,
     journal: <JournalScreen profile={fullProfile} />,
-  })[active], [active, fullProfile]);
+  })[active], [active, fullProfile, uiLanguage]);
 
+  if (!uiLanguage || pickingLanguage) return <LanguagePicker onPick={pickLanguage} />;
   if (!ethicsConsent) return <EthicsConsent onAccept={setEthicsConsent} />;
   if (!profile) return <Onboarding onFinish={(nextProfile) => setProfile({ ...nextProfile, ethicsConsent })} />;
   return <div className="app-shell">{content}<BottomNav active={active} setActive={setActive}/></div>;
