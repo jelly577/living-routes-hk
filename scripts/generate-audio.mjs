@@ -8,6 +8,7 @@
 //
 // Run on a Mac, from the project folder:
 //   node scripts/generate-audio.mjs                          # (re)generate everything with neural voices
+//   node scripts/generate-audio.mjs --only themed             # only the interest-themed narration
 //   node scripts/generate-audio.mjs --lang zh-HK             # one language (en | zh-CN | zh-HK)
 //   node scripts/generate-audio.mjs --voice zh-HK=zh-HK-WanLungNeural   # pick another voice
 //   node scripts/generate-audio.mjs --rate -5%               # a bit slower (edge only)
@@ -22,6 +23,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allStories, localizeStory, SUPPORTED_LANGUAGES } from '../src/content/stories.js';
+import { allThemedStories } from '../src/content/themedStories.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'audio');
@@ -31,6 +33,8 @@ const argValues = (name) => args.flatMap((a, i) => (a === name && args[i + 1] ? 
 const force = args.includes('--force');
 const langArg = argValue('--lang');
 const engine = argValue('--engine') || 'edge';
+const only = argValue('--only');
+const storyPool = only === 'themed' ? allThemedStories : [...allStories, ...allThemedStories];
 
 if (process.platform !== 'darwin') {
   console.error('Run this script on a Mac (it uses afinfo/afconvert, and `say` for the offline engine).');
@@ -161,7 +165,7 @@ for (const lang of langs) {
     continue;
   }
   console.log(`\n${lang}: using ${engine} voice "${voice}"`);
-  for (const story of allStories) {
+  for (const story of storyPool) {
     const key = `${story.placeId}.${story.track}.${story.length}.${lang}`;
     const file = `${key}.m4a`;
     const out = join(outDir, file);

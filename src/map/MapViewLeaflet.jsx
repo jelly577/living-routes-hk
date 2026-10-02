@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { escapeHtml, fetchRoadPath, reverseGeocode } from './osm.js';
+import { placeName, t } from '../i18n.js';
 
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -11,8 +12,8 @@ function markerIcon(place) {
 }
 
 function popupHtml(place) {
-  const imgStatus = place.image?.status === 'verified' ? '图片：已核实' : '图片：待核实';
-  const coordStatus = place.coordinateStatus === 'verified' ? '坐标：已核对' : '坐标：地图目测（待实地核对）';
+  const imgStatus = place.image?.status === 'verified' ? t('mapui.photoVerified') : t('mapui.photoPending');
+  const coordStatus = place.coordinateStatus === 'verified' ? t('mapui.locVerified') : t('mapui.locApprox');
   const image = place.image?.url
     ? `<img class="lr-popup-image" src="${escapeHtml(place.image.url)}" alt="${escapeHtml(place.image.alt || place.nameEn)}" />`
     : '';
@@ -21,9 +22,8 @@ function popupHtml(place) {
     : '';
   return `<div class="lr-popup">
     ${image}
-    <span class="lr-popup-eyebrow">HERITAGE POINT ${place.order}</span>
-    <strong>${place.nameZh}</strong>
-    <em>${place.nameEn}</em>
+    <span class="lr-popup-eyebrow">${t('mapui.point', { n: place.order })}</span>
+    <strong>${escapeHtml(placeName(place))}</strong>
     <small>${imgStatus} · ${coordStatus}</small>
     ${credit}
   </div>`;
@@ -52,11 +52,11 @@ export default function MapViewLeaflet({ route }) {
       const { lat, lng } = event.latlng;
       const popup = L.popup()
         .setLatLng(event.latlng)
-        .setContent('<div class="lr-popup"><small>查询地名中…</small></div>')
+        .setContent(`<div class="lr-popup"><small>${t('mapui.lookingUp')}</small></div>`)
         .openOn(map);
       reverseGeocode(lat, lng)
-        .then((name) => popup.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">你点到了这里</span><p class="lr-click-name">${escapeHtml(name)}</p></div>`))
-        .catch(() => popup.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">离线 · 仅坐标</span><strong>${lat.toFixed(5)}, ${lng.toFixed(5)}</strong></div>`));
+        .then((name) => popup.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">${t('mapui.tapped')}</span><p class="lr-click-name">${escapeHtml(name)}</p></div>`))
+        .catch(() => popup.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">${t('mapui.offlineCoords')}</span><strong>${lat.toFixed(5)}, ${lng.toFixed(5)}</strong></div>`));
     };
     map.on('click', onClick);
 
@@ -105,7 +105,7 @@ export default function MapViewLeaflet({ route }) {
   return (
     <>
       <div ref={containerRef} className="lr-map" />
-      {offline && <div className="lr-offline">离线模式 · 仅显示路线与地点（无地图瓦片）</div>}
+      {offline && <div className="lr-offline">{t('mapui.offlineMode')}</div>}
     </>
   );
 }

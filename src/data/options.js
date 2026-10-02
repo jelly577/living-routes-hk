@@ -13,6 +13,7 @@ export const identityOptions = [
 
 export const interestOptions = [
   'Architecture',
+  'History',
   'Culture',
   'Food',
   'Nature',
