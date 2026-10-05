@@ -2,6 +2,7 @@ import { mockPosts } from '../data/mockPosts.js';
 import { getPlaceById } from '../data/places.js';
 import { applyPhotoStyle, deleteMemoryPost, listMemoryPosts, readPhotoFile, saveMemoryPost } from './memoryPostStorage.js';
 import { isPointInBounds, simulateNetwork } from './utils.js';
+import { sharedCommunityEnabled, readSharedPosts, publishSharedPost, removeSharedPost } from './sharedCommunityService.js';
 
 async function migratePhotoTreatment(post) {
   if (!post.image) return post;
@@ -29,7 +30,9 @@ async function migratePhotoTreatment(post) {
 
 export async function getPosts({ filter = 'all', bounds, placeId } = {}) {
   const savedPosts = await Promise.all((await listMemoryPosts()).map(migratePhotoTreatment));
-  const communityPosts = savedPosts.filter((post) => post.visibility === 'community');
+  const remotePosts = await readSharedPosts();
+  const remoteIds = new Set(remotePosts.map((post) => post.id));
+  const communityPosts = [...remotePosts, ...savedPosts.filter((post) => post.visibility === 'community' && (!sharedCommunityEnabled || !post.shared) && !remoteIds.has(post.id))];
   const filtered = [...communityPosts, ...mockPosts].filter((post) => {
     if (filter !== 'all' && post.kind !== filter) return false;
     if (placeId && post.placeId !== placeId) return false;
@@ -44,6 +47,8 @@ export async function getMyPosts() {
 }
 
 export async function deletePost(id) {
+  const saved = (await listMemoryPosts()).find((post) => post.id === id);
+  if (saved?.shared || (!saved && sharedCommunityEnabled)) await removeSharedPost(id);
   await deleteMemoryPost(id);
   return simulateNetwork({ id, deleted: true });
 }
@@ -63,7 +68,7 @@ export async function addPost({
   const place = getPlaceById(location);
   const image = typeof photo === 'string' ? await applyPhotoStyle(photo, photoStyle) : await readPhotoFile(photo, photoStyle);
   const normalizedVisibility = visibility === 'community' ? 'community' : 'private';
-  const post = {
+  let post = {
     id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `post-${Date.now()}`,
     kind: role,
     era: 'MODERN',
@@ -80,6 +85,22 @@ export async function addPost({
     status: normalizedVisibility === 'community' ? 'pending-review' : 'private',
     createdAt: new Date().toISOString(),
   };
-  await saveMemoryPost(post);
+  if (normalizedVisibility === 'community' && sharedCommunityEnabled) post = await publishSharedPost(post);
+  try { await saveMemoryPost(post); }
+  catch (error) {
+    if (!post.shared) throw error;
+    // The cloud write already succeeded; never tell users to publish it again.
+    post.localSaveFailed = true;
+  }
   return simulateNetwork(post);
+}
+
+export async function shareSavedPost(id) {
+  const post = (await listMemoryPosts()).find((item) => item.id === id);
+  if (!post || post.visibility !== 'community') throw new Error('Choose an existing Community post.');
+  if (post.shared) return post;
+  const shared = await publishSharedPost(post);
+  try { await saveMemoryPost(shared); }
+  catch { shared.localSaveFailed = true; }
+  return shared;
 }
