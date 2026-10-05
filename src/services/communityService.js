@@ -1,4 +1,3 @@
-import { mockPosts } from '../data/mockPosts.js';
 import { findKnownPlace, findPostPlace } from '../data/locations.js';
 import { applyPhotoStyle, deleteMemoryPost, listMemoryPosts, readPhotoFile, saveMemoryPost } from './memoryPostStorage.js';
 import { isPointInBounds, simulateNetwork } from './utils.js';
@@ -33,7 +32,7 @@ export async function getPosts({ filter = 'all', bounds, placeId } = {}) {
   const remotePosts = await readSharedPosts();
   const remoteIds = new Set(remotePosts.map((post) => post.id));
   const communityPosts = [...remotePosts, ...savedPosts.filter((post) => post.visibility === 'community' && (!sharedCommunityEnabled || !post.shared) && !remoteIds.has(post.id))];
-  const filtered = [...communityPosts, ...mockPosts].filter((post) => {
+  const filtered = communityPosts.filter((post) => {
     if (filter !== 'all' && post.kind !== filter) return false;
     if (placeId && post.placeId !== placeId) return false;
     const place = findPostPlace(post);
@@ -115,6 +114,18 @@ export async function shareSavedPost(id) {
   try { await saveMemoryPost(shared); }
   catch { shared.localSaveFailed = true; }
   return shared;
+}
+
+// Only entries explicitly marked public are eligible; never upload private journals.
+export async function shareAllSavedCommunityPosts() {
+  const posts = await listMemoryPosts();
+  const published = [];
+  const failed = [];
+  for (const post of posts.filter((item) => item.visibility === 'community' && !item.shared)) {
+    try { published.push(await shareSavedPost(post.id)); }
+    catch (error) { failed.push({ id: post.id, message: error.message }); }
+  }
+  return { published, failed };
 }
 
 // Places that only exist because someone posted there (Google places or tapped

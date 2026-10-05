@@ -26,6 +26,9 @@ On the **same browser and origin** where old posts were saved, open Community.
 Once connected, each old local Community post has a manual publish button.
 Choosing it uploads that post and its processed image. Private posts have no
 automatic upload path. Posts stored on localhost and GitHub Pages are separate.
+The bulk publish button uploads all old Community-marked posts from this browser,
+including posts hidden by the current feed filter. It excludes private entries,
+reports failures, and allows retrying. Default demo posts are not in the feed.
 
 ## Acceptance checks before declaring it live
 

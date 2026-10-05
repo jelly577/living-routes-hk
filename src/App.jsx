@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { mockPosts } from './data/mockPosts.js';
 import { identityOptions, interestOptions } from './data/options.js';
 import { getPlaceById } from './data/places.js';
-import { shareSavedPost } from './services/communityService.js';
+import { shareSavedPost, shareAllSavedCommunityPosts } from './services/communityService.js';
 import { sharedCommunityEnabled } from './services/sharedCommunityService.js';
 import { checkpoints as checkpointList } from './data/checkpoints.js';
 import { findPostPlace, postLocationGroups } from './data/locations.js';
@@ -671,7 +670,7 @@ function DeletePostButton({ onDelete }) {
 
 function CommunityScreen({ profile, onPostAdded }) {
   const [filter, setFilter] = useState('all');
-  const [posts, setPosts] = useState(mockPosts);
+  const [posts, setPosts] = useState([]);
   const [composer, setComposer] = useState(false);
   const [composerVisibility, setComposerVisibility] = useState('private');
   const [composerPhotoStyle, setComposerPhotoStyle] = useState('original');
@@ -732,6 +731,18 @@ function CommunityScreen({ profile, onPostAdded }) {
     finally { setSyncingPost(null); }
   };
 
+  const syncAllPosts = async () => {
+    setSyncingPost('all');
+    try {
+      const result = await shareAllSavedCommunityPosts();
+      setSavedNotice(t('comm.syncResult', { count: result.published.length, failed: result.failed.length })
+        + (result.failed.length ? ` · ${result.failed[0].message}` : ''));
+      setRefreshVersion((value) => value + 1);
+      onPostAdded?.();
+    } catch (error) { setSavedNotice(error.message); }
+    finally { setSyncingPost(null); }
+  };
+
   const submitVoice = async (event) => {
     event.preventDefault();
     setVoiceLoading(true);
@@ -758,6 +769,8 @@ function CommunityScreen({ profile, onPostAdded }) {
     <p role="status">{t(sharedCommunityEnabled ? 'comm.sharedReady' : 'comm.localOnly')}</p>
     {loadError && <p role="alert">{loadError}</p>}
     <button className="secondary" onClick={() => setRefreshVersion((value) => value + 1)}>{t('comm.refresh')}</button>
+    {sharedCommunityEnabled && <button className="secondary" disabled={syncingPost !== null} onClick={syncAllPosts}>{t('comm.syncAll')}</button>}
+    {!loadError && posts.length === 0 && <p>{t('comm.empty')}</p>}
     <header className="section-header"><span className="eyebrow">{t('comm.eyebrow')}</span><h1>{t('comm.title')}</h1><p>{t('comm.intro')}</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}<button className="voice-demo-trigger" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button></header>
     <div className="segmented"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>{t('comm.all')}</button><button className={filter === 'tourist' ? 'active' : ''} onClick={() => setFilter('tourist')}>{t('comm.tourist')}</button><button className={filter === 'local' ? 'active' : ''} onClick={() => setFilter('local')}>{t('comm.local')}</button></div>
     <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={postPlace(post)}/> : <div className="post-image-placeholder"><b>{postPlace(post)}</b><small>{t('comm.photoMissing')}</small></div>}<span>{post.era ? t(`era.${post.era}`) : ''}</span></div><div className="post-copy"><small>⌖ {postPlace(post)}</small><ExpandableText>{postText(post)}</ExpandableText><b>{postAuthor(post)}</b>{post.createdAt && <small>{t(post.shared ? 'comm.unreviewed' : 'comm.localOnly')}</small>}{post.createdAt && (!post.shared || post.canDelete) && <DeletePostButton onDelete={() => removePost(post.id)}/>} {sharedCommunityEnabled && post.createdAt && !post.shared && <button type="button" className="secondary" disabled={syncingPost !== null} onClick={() => syncPost(post.id)}>{t('comm.sync')}</button>}</div></article>)}</div>

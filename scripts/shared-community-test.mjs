@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSharedCommunityBackend } from '../src/services/sharedCommunityService.js';
+import { addPost, getMyPosts, shareAllSavedCommunityPosts } from '../src/services/communityService.js';
 
 // This is a client contract test, not a substitute for live RLS tests.
 function fixture() {
@@ -46,6 +47,17 @@ test('private journals never enter the public adapter', async () => {
   const { backend, rows } = fixture();
   await assert.rejects(backend.publishSharedPost({ ...post, visibility: 'private' }), /Private journals/);
   assert.equal(rows.length, 0);
+});
+
+test('bulk migration only attempts old public entries and preserves failures locally', async () => {
+  const privatePost = await addPost({ text: 'Keep private', visibility: 'private' });
+  const publicPost = await addPost({ text: 'Old public entry', visibility: 'community' });
+  const result = await shareAllSavedCommunityPosts();
+  assert.deepEqual(result.published, []);
+  assert.deepEqual(result.failed.map((item) => item.id), [publicPost.id]);
+  const saved = await getMyPosts();
+  assert.equal(saved.find((item) => item.id === privatePost.id).visibility, 'private');
+  assert.equal(saved.find((item) => item.id === publicPost.id).shared, undefined);
 });
 
 test('an independent visitor reads posts but cannot delete them', async () => {
