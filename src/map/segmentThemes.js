@@ -5,22 +5,27 @@
 export const segmentThemes = {
   'macao-ferry->central-market': {
     zh: '中環海濱填海區與開埠早期的商業中心',
+    zhCN: '中环海滨填海区与开埠早期的商业中心',
     en: "Central's reclaimed harbourfront and the colony's early commercial heart",
   },
   'central-market->court-of-final-appeal': {
     zh: '皇后大道軸線：金融區與司法權威的百年並存',
+    zhCN: '皇后大道轴线：金融区与司法权威的百年并存',
     en: "Queen's Road axis — a century of finance and judicial authority side by side",
   },
   'court-of-final-appeal->lee-tung-street': {
     zh: '皇后大道東：老區更新與市井記憶',
+    zhCN: '皇后大道东：老区更新与市井记忆',
     en: "Queensway East — old-quarter renewal and everyday street memory",
   },
   'lee-tung-street->blue-house': {
     zh: '灣仔老街：囍帖街的印刷業與藍屋的唐樓生活',
+    zhCN: '湾仔老街：囍帖街的印刷业与蓝屋的唐楼生活',
     en: "Wan Chai old streets — Lee Tung's printing trade and Blue House tenement life",
   },
   'blue-house->happy-valley-racecourse': {
     zh: '跑馬地：馬場、墳場與香港早期城市史',
+    zhCN: '跑马地：马场、坟场与香港早期城市史',
     en: "Happy Valley — racecourse, cemeteries, and Hong Kong's early urban history",
   },
 };
