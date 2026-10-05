@@ -1,4 +1,3 @@
-import { mockJourneyLog } from '../data/mockJourneyLog.js';
 import { buildNextRecommendation, deriveInterestSignals } from './recommendationService.js';
 import { simulateNetwork } from './utils.js';
 
@@ -8,21 +7,23 @@ export async function generateJourneyLog({
   style = 'reflective',
   language = 'en',
 } = {}) {
-  const chapters = memories.length > 0
-    ? memories.map((memory, index) => ({
+  if (!Array.isArray(memories) || memories.length === 0) {
+    throw new Error('Save your own journey memories before generating a log.');
+  }
+  const chapters = memories.map((memory, index) => ({
       id: `memory-chapter-${memory.id || index + 1}`,
       order: index + 1,
       place: memory.place || 'Along Route 1',
       time: memory.time || 'Journey moment',
       title: `A Moment at ${memory.place || 'the Next Stop'}`,
       text: memory.text || 'A private moment saved along the route.',
-    }))
-    : mockJourneyLog.chapters;
+    }));
   const interestSignals = deriveInterestSignals(memories);
 
   return simulateNetwork({
-    ...mockJourneyLog,
-    title: memories.length > 0 ? 'My Living Route Through Hong Kong' : mockJourneyLog.title,
+    title: 'My Living Route Through Hong Kong',
+    summary: 'A private log assembled from your saved memories.',
+    status: 'memory-assembled',
     chapters,
     routeId: route?.id || 'citybus-1-central-happy-valley',
     memoryCount: memories.length,

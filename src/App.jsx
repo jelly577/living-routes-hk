@@ -905,10 +905,16 @@ function JournalScreen({ profile }) {
   };
 
   const generate = async () => {
+    if (memories.length === 0) return;
     setLoading(true); setGenerated(null);
-    const result = await generateJourneyLog({ memories, style: 'reflective', language: 'en' });
-    setGenerated(result);
-    setLoading(false);
+    try {
+      const result = await generateJourneyLog({ memories, style: 'reflective', language: 'en' });
+      setGenerated(result);
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeMemory = async (id) => {
@@ -922,7 +928,8 @@ function JournalScreen({ profile }) {
     <header className="section-header"><span className="eyebrow">{t('jr.eyebrow')}</span><h1>{t('jr.title')}</h1><p>{t('jr.intro')}</p></header>
     <form className="memory-form" onSubmit={addMemory}><PhotoUpload key={uploadKey} large photoStyle={journalPhotoStyle}/><PhotoStylePicker name="journalPhotoStyle" value={journalPhotoStyle} onChange={setJournalPhotoStyle}/><div className="form-row"><input name="place" placeholder={t('jr.placePh')}/><textarea name="text" placeholder={t('jr.textPh')}/></div><button className="secondary">{t('jr.save')}</button></form>
     {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}<div><small>{memory.place} · {memory.visibility === 'community' ? t('jr.community') : t('jr.onlyMe')}</small><ExpandableText compact>{memory.text}</ExpandableText><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></article>)}</div>}
-    <button className="generate-button" onClick={generate} disabled={loading}>✦ {loading ? t('jr.weaving') : t('jr.generate')}</button>
+    {memories.length === 0 && <p role="status">{t('jr.empty')}</p>}
+    <button className="generate-button" onClick={generate} disabled={loading || memories.length === 0}>✦ {loading ? t('jr.weaving') : t('jr.generate')}</button>
     {generated && <div className="generated-log page-enter"><span className="eyebrow">{t('jr.genEyebrow')}</span><h2>{generated.title}</h2>{generated.chapters.map((chapter) => <div className="chapter" key={chapter.id}><i>{String(chapter.order).padStart(2, '0')}</i><div><small>{chapter.place.toUpperCase()} · {chapter.time}</small><h3>{chapter.title}</h3><p>{chapter.text}</p></div></div>)}<div className="profile-update"><small>{t('jr.learned')}</small><b>{generated.interestSignals.map((signal) => signal.label).join(' · ')}</b><p>{t('jr.nextRec', { x: generated.nextRecommendation.label })}</p><span>{generated.nextRecommendation.reason}</span></div><button className="secondary wide">{t('jr.export')}</button></div>}
   </section>;
 }
