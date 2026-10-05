@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { mockPosts } from './data/mockPosts.js';
 import { identityOptions, interestOptions } from './data/options.js';
 import { getPlaceById } from './data/places.js';
-import { addPost, analyzeInterestProfile, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
+import { checkpoints as checkpointList } from './data/checkpoints.js';
+import { findPostPlace, postLocationGroups } from './data/locations.js';
+import { addPost, analyzeInterestProfile, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPostedPlaces, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
 import { applyPhotoStyle } from './services/memoryPostStorage.js';
 import MapView from './MapView.jsx';
 import { UI_LANGUAGES, defaultNarration, getLanguage, placeName, routeTitle, setLanguage as setUiLanguage, t } from './i18n.js';
@@ -10,7 +12,7 @@ import { UI_LANGUAGES, defaultNarration, getLanguage, placeName, routeTitle, set
 const ethicsCommitments = ['consent', 'attribution', 'correction', 'benefit'];
 
 // Demo/community posts: show place, text and author in the interface language when a translation exists.
-const postPlace = (post) => { const place = getPlaceById(post.placeId || post.location); return place ? placeName(place) : post.place; };
+const postPlace = (post) => { const place = findPostPlace(post); return place ? placeName(place) : post.place; };
 const postText = (post) => post.textI18n?.[getLanguage()] || post.text;
 const postAuthor = (post) => post.authorI18n?.[getLanguage()] || post.author;
 
@@ -234,6 +236,11 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
 function PlacePostsSheet({ place, onClose, onPostAdded }) {
   const [posts, setPosts] = useState([]);
   const [composing, setComposing] = useState(false);
+  const [visibility, setVisibility] = useState('community');
+  const [photoStyle, setPhotoStyle] = useState('original');
+  const [error, setError] = useState('');
+  // Places picked on the map are not in our data files, so the post carries them.
+  const isMapPlace = place.kind === 'user-place';
 
   useEffect(() => {
     let cancelled = false;
@@ -243,32 +250,45 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
 
   const submitPost = async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    setError('');
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
     const file = form.get('photo');
-    const created = await addPost({
-      photo: file?.size ? URL.createObjectURL(file) : undefined,
-      text: form.get('memory'),
-      location: place.id,
-      role: 'tourist',
-      consent: form.get('consent') === 'on',
-    });
-    setPosts((current) => [created, ...current]);
-    setComposing(false);
-    event.currentTarget.reset();
-    onPostAdded?.();
+    try {
+      const created = await addPost({
+        photo: file?.size && photoStyle !== 'none' ? file : undefined,
+        text: form.get('memory'),
+        location: isMapPlace ? place : place.id,
+        role: 'tourist',
+        consent: form.get('consent') === 'on',
+        visibility,
+        photoStyle,
+      });
+      setPosts((current) => [created, ...current]);
+      setComposing(false);
+      formEl.reset();
+      onPostAdded?.(created);
+    } catch (err) {
+      setError(t('comm.photoNotSaved', { msg: err.message }));
+    }
   };
+
+  const eyebrow = place.kind === 'checkpoint'
+    ? `${t('cp.eyebrow')} · ${t(`cp.cat.${place.category}`)}`
+    : isMapPlace ? t('cp.eyebrowUser') : t('posts.eyebrow');
 
   return <div className="place-posts-sheet page-enter">
     <div className="sheet-handle" />
     <button className="close" onClick={onClose} aria-label={t('common.close')}>×</button>
     {place.image?.url && <div className="place-hero"><img src={place.image.url} alt={placeName(place)} />{place.image.credit && <small>© {place.image.credit}</small>}</div>}
-    <span className="eyebrow">{t('posts.eyebrow')}</span>
+    <span className="eyebrow">{eyebrow}</span>
     <h2>{placeName(place)}</h2>
+    {place.noteKey && <p className="place-note">{t(place.noteKey)}</p>}
     {posts.length === 0 ? (
       <p className="posts-empty">{t('posts.empty')}</p>
     ) : (
       <div className="place-posts-list">
-        {posts.map((post) => <article className="post-card" key={post.id}><div className="post-copy"><small>⌖ {postPlace(post)}</small><p>{postText(post)}</p><b>{postAuthor(post)}</b></div></article>)}
+        {posts.map((post) => <article className="post-card" key={post.id}>{post.image && <div className="post-image"><img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={postPlace(post)} /></div>}<div className="post-copy"><small>⌖ {postPlace(post)}</small><p>{postText(post)}</p><b>{postAuthor(post)}</b></div></article>)}
       </div>
     )}
     {composing ? (
@@ -276,8 +296,14 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
         <label className="inline-label">{t('posts.label')}
           <textarea name="memory" required placeholder={t('posts.placeholder')} />
         </label>
-        <label className="upload">{t('posts.addPhoto')} <input type="file" name="photo" accept="image/*" /></label>
+        <PhotoUpload photoStyle={photoStyle} />
+        <PhotoStylePicker value={photoStyle} onChange={setPhotoStyle} />
+        <fieldset className="visibility-picker compact"><legend>{t('posts.visibility')}</legend><div>
+          <label><input type="radio" name="visibility" value="community" checked={visibility === 'community'} onChange={() => setVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label>
+          <label><input type="radio" name="visibility" value="private" checked={visibility === 'private'} onChange={() => setVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label>
+        </div></fieldset>
         <label className="consent-row"><input type="checkbox" name="consent" /> {t('posts.consentAi')}</label>
+        {error && <p className="form-error">{error}</p>}
         <div className="inline-actions">
           <button type="button" className="secondary" onClick={() => setComposing(false)}>{t('common.cancel')}</button>
           <button className="primary" type="submit">{t('posts.submit')}</button>
@@ -441,12 +467,21 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
   const [nearbyPlace, setNearbyPlace] = useState(null);
   const [segment, setSegment] = useState(null);
   const [demoing, setDemoing] = useState(false);
+  const [postedPlaces, setPostedPlaces] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
     getRoute({ mode: 'demo' }).then((nextRoute) => { if (!cancelled) setRoute(nextRoute); });
+    getPostedPlaces().then((list) => { if (!cancelled) setPostedPlaces(list); });
     return () => { cancelled = true; };
   }, []);
+
+  // 打卡点 + 用户在地图上任意地点发过帖的位置，作为一层独立于路线的标记
+  const mapCheckpoints = useMemo(() => [...checkpointList, ...postedPlaces], [postedPlaces]);
+  const handlePostAdded = (created) => {
+    getPostedPlaces().then(setPostedPlaces);
+    onPostAdded?.(created);
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -471,7 +506,7 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
   useEffect(() => { if (demoing) setPlayerOpen(false); }, [demoing]);
 
   return <section className={`screen map-screen page-enter ${chromeCollapsed ? 'chrome-collapsed' : ''}`}>
-    <div className="map-canvas"><MapView route={route} mode={mode} onArrive={handleArrive} onSelectPlace={setPostsPlace} onSegmentChange={setSegment} onNearbyPlace={setNearbyPlace} onDemoingChange={setDemoing} /></div>
+    <div className="map-canvas"><MapView route={route} checkpoints={mapCheckpoints} mode={mode} onArrive={handleArrive} onSelectPlace={setPostsPlace} onSegmentChange={setSegment} onNearbyPlace={setNearbyPlace} onDemoingChange={setDemoing} /></div>
     <div className="mode-switch">
       <button className={mode === 'bus' ? 'active' : ''} onClick={() => setMode('bus')}>{t('map.busTour')}</button>
       <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>{t('map.walk')}</button>
@@ -501,8 +536,23 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
     </div>}
     {playerOpen && <PlayerSheet profile={profile} placeId={currentPlaceId} remainingTimeSec={timeToNextSec} onClose={() => setPlayerOpen(false)} />}
     {segment && mode === 'bus' && demoing && <DemoNarration segment={segment} profile={profile} />}
-    {postsPlace && <PlacePostsSheet place={postsPlace} onClose={() => setPostsPlace(null)} onPostAdded={onPostAdded} />}
+    {postsPlace && <PlacePostsSheet key={postsPlace.id} place={postsPlace} onClose={() => setPostsPlace(null)} onPostAdded={handlePostAdded} />}
   </section>;
+}
+
+// 发帖地点：文化路线 5 站 + 打卡点 + 其他（自由填写）
+function PlaceSelect() {
+  const [value, setValue] = useState('');
+  return <>
+    <label>{t('comp.place')}<select name="place" value={value} onChange={(e) => setValue(e.target.value)}>
+      <option value="">{t('comp.placeChoose')}</option>
+      {postLocationGroups().map((group) => <optgroup key={group.key} label={t(group.key === 'heritage' ? 'comp.groupHeritage' : 'comp.groupCheckpoints')}>
+        {group.items.map((item) => <option key={item.id} value={item.id}>{placeName(item)}</option>)}
+      </optgroup>)}
+      <option value="__other">{t('comp.placeOther')}</option>
+    </select></label>
+    {value === '__other' && <label>{t('comp.placeOther')}<input name="placeOther" placeholder={t('comp.placeOtherPh')}/></label>}
+  </>;
 }
 
 const photoStyles = ['original', 'cartoon', 'cyberpunk', 'pencil', 'none'];
@@ -636,7 +686,7 @@ function CommunityScreen({ profile, onPostAdded }) {
       const created = await addPost({
         photo: file?.size && form.get('photoStyle') !== 'none' ? file : undefined,
         text: form.get('memory'),
-        location: form.get('place'),
+        location: form.get('place') === '__other' ? (form.get('placeOther') || '').trim() : form.get('place'),
         role: 'tourist',
         consent: form.get('consent') === 'on',
         visibility: form.get('visibility'),
@@ -681,7 +731,7 @@ function CommunityScreen({ profile, onPostAdded }) {
     <div className="segmented"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>{t('comm.all')}</button><button className={filter === 'tourist' ? 'active' : ''} onClick={() => setFilter('tourist')}>{t('comm.tourist')}</button><button className={filter === 'local' ? 'active' : ''} onClick={() => setFilter('local')}>{t('comm.local')}</button></div>
     <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={postPlace(post)}/> : <div className="post-image-placeholder"><b>{postPlace(post)}</b><small>{t('comm.photoMissing')}</small></div>}<span>{post.era ? t(`era.${post.era}`) : ''}</span></div><div className="post-copy"><small>⌖ {postPlace(post)}</small><ExpandableText>{postText(post)}</ExpandableText><b>{postAuthor(post)}</b>{post.createdAt && <DeletePostButton onDelete={() => removePost(post.id)}/>}</div></article>)}</div>
     <button className="fab" onClick={() => { setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposer(true); }}>＋</button>
-    {composer && <div className="modal-backdrop"><form className="compose-card memory-compose" onSubmit={submitPost}><button type="button" className="close" onClick={() => setComposer(false)}>×</button><span className="eyebrow">{t('comp.eyebrow')}</span><h2>{t('comp.title')}</h2><label>{t('comp.place')}<input name="place" placeholder={t('comp.placePlaceholder')}/></label><label>{t('comp.story')}<textarea name="memory" required placeholder={t('comp.storyPlaceholder')}/></label><PhotoUpload photoStyle={composerPhotoStyle}/><PhotoStylePicker value={composerPhotoStyle} onChange={setComposerPhotoStyle}/><fieldset className="visibility-picker"><legend>{t('comp.visibility')}</legend><div><label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label><label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label></div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> {t('comp.consent')}</label><button className="primary wide">{composerVisibility === 'community' ? t('comp.postBtn') : t('comp.saveBtn')}</button></form></div>}
+    {composer && <div className="modal-backdrop"><form className="compose-card memory-compose" onSubmit={submitPost}><button type="button" className="close" onClick={() => setComposer(false)}>×</button><span className="eyebrow">{t('comp.eyebrow')}</span><h2>{t('comp.title')}</h2><PlaceSelect /><label>{t('comp.story')}<textarea name="memory" required placeholder={t('comp.storyPlaceholder')}/></label><PhotoUpload photoStyle={composerPhotoStyle}/><PhotoStylePicker value={composerPhotoStyle} onChange={setComposerPhotoStyle}/><fieldset className="visibility-picker"><legend>{t('comp.visibility')}</legend><div><label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label><label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label></div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> {t('comp.consent')}</label><button className="primary wide">{composerVisibility === 'community' ? t('comp.postBtn') : t('comp.saveBtn')}</button></form></div>}
     {voiceDemo && <div className="modal-backdrop"><div className="compose-card voice-card"><button type="button" className="close" onClick={() => setVoiceDemo(false)}>×</button>{!voiceResult ? <><span className="eyebrow">{t('voice.eyebrow')}</span><h2>{t('voice.title')}</h2><p className="modal-intro">{t('voice.intro')}</p><form onSubmit={submitVoice}><label>{t('voice.place')}<select name="voicePlace" defaultValue="blue-house">{['blue-house', 'lee-tung-street', 'central-market'].map((id) => <option key={id} value={id}>{placeName(getPlaceById(id))}</option>)}</select></label><label className="upload">{t('voice.add')} <input type="file" name="voice" accept="audio/*"/><small>{t('voice.optional')}</small></label><label>{t('voice.transcript')} <textarea name="voiceTranscript" placeholder={t('voice.transcriptPh')}/></label><div className="voice-consents"><label className="consent-row"><input type="checkbox" name="voiceConsent"/> {t('voice.consent')}</label><label className="consent-row"><input type="checkbox" name="voiceReplicaConsent"/> {t('voice.replica')}</label><small>{t('voice.replicaNote')}</small></div><button className="primary wide" disabled={voiceLoading}>{voiceLoading ? t('voice.processing') : t('voice.run')}</button></form></> : <VoiceResult result={voiceResult} onReset={() => setVoiceResult(null)} />}</div></div>}
   </section>;
 }
@@ -726,7 +776,7 @@ function JournalScreen({ profile }) {
       const created = await addPost({
         photo: file?.size && form.get('journalPhotoStyle') !== 'none' ? file : undefined,
         text: form.get('text') || t('jr.defaultText'),
-        location: form.get('place'),
+        location: form.get('place') === '__other' ? (form.get('placeOther') || '').trim() : form.get('place'),
         visibility: 'private',
         photoStyle: form.get('journalPhotoStyle'),
         author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),

@@ -16,7 +16,8 @@ export function loadGoogleMaps() {
   loadingPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     // Map labels follow the interface language chosen on the first screen.
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry&language=${getLanguage()}&region=HK`;
+    // `places` lets a tap on any Google point of interest open the post sheet.
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry,places&language=${getLanguage()}&region=HK`;
     script.async = true;
     script.onerror = () => reject(new Error('Google Maps script failed to load'));
     script.onload = () => resolve(window.google.maps);

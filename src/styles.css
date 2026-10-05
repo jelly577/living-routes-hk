@@ -283,3 +283,19 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .language-options small { grid-column: 1; color: #5f6e67; font-size: 15px; }
 .language-options span { grid-column: 2; grid-row: 1 / span 2; color: #c4502f; font-size: 22px; }
 .lang-button { font-size: 13px; font-weight: 700; }
+
+/* ---- Check-in points (打卡点) ---- */
+.lr-checkins { position: absolute; top: 276px; right: 14px; z-index: 5; height: 34px; padding: 0 13px; border: none; border-radius: 99px; background: #fffdf9; color: #173e31; font: 600 11px 'DM Sans', sans-serif; box-shadow: 0 4px 14px rgba(23, 62, 49, 0.22); cursor: pointer; white-space: nowrap; }
+.lr-checkins.is-on { background: #d99a2b; color: #fff; }
+.lr-cp-marker { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #d99a2b; color: #fff; border: 2.5px solid #fff; font-size: 13px; box-shadow: 0 3px 10px #173e3140; }
+.lr-cp-marker.is-organizer { background: #b8862b; outline: 1.5px solid #173e31; }
+.lr-cp-marker.is-user { width: 18px; height: 18px; background: #fffaf2; border: 3px solid #c4502f; }
+.lr-cp-popup { max-width: 230px; }
+.lr-popup-post { display: block; width: 100%; margin-top: 9px; padding: 8px 10px; border: none; border-radius: 99px; background: #173e31; color: #fff; font: 600 11px 'DM Sans', sans-serif; cursor: pointer; }
+.place-note { margin: -4px 0 10px; color: #718078; font-size: 12px; line-height: 1.4; }
+.place-posts-sheet { max-height: calc(100% - 96px); overflow-y: auto; }
+.place-posts-sheet .post-image img { min-height: 0; max-height: 180px; }
+.compose-inline .upload input { display: none; }
+.visibility-picker.compact { margin: 2px 0; }
+.form-error { margin: 0; color: #b23b22; font-size: 11px; }
+.compose-card select { width: 100%; margin-top: 5px; border: 1px solid #d8d1c5; background: white; padding: 12px; border-radius: 11px; outline-color: #c4502f; font: inherit; font-size: 13px; }
