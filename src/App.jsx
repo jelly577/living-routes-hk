@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { identityOptions, interestOptions } from './data/options.js';
 import { getPlaceById } from './data/places.js';
 import { shareSavedPost, shareAllSavedCommunityPosts } from './services/communityService.js';
@@ -253,6 +254,7 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
 
   const submitPost = async (event) => {
     event.preventDefault();
+    if (saving) return;
     setError('');
     const formEl = event.currentTarget;
     const form = new FormData(formEl);
@@ -311,8 +313,8 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
         <label className="consent-row"><input type="checkbox" name="consent" /> {t('posts.consentAi')}</label>
         {error && <p className="form-error">{error}</p>}
         <div className="inline-actions">
-          <button type="button" className="secondary" onClick={() => setComposing(false)}>{t('common.cancel')}</button>
-          <button className="primary" type="submit" disabled={saving}>{t('posts.submit')}</button>
+          <button type="button" className="secondary" disabled={saving} onClick={() => setComposing(false)}>{t('common.cancel')}</button>
+          <button className="primary" type="submit" disabled={saving}>{saving ? t('comp.saving') : t('posts.submit')}</button>
         </div>
       </form>
     ) : (
@@ -668,6 +670,45 @@ function DeletePostButton({ onDelete }) {
   </div>;
 }
 
+function ComposeOverlay({ children, onClose, busy, title }) {
+  const [viewport, setViewport] = useState(null);
+  const overlayRef = useRef(null);
+  useEffect(() => {
+    const update = () => {
+      const view = window.visualViewport;
+      setViewport({ height: view?.height || window.innerHeight, top: view?.offsetTop || 0 });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    const shell = document.querySelector('.app-shell');
+    const previousInert = shell?.inert;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement;
+    if (shell) shell.inert = true;
+    document.body.style.overflow = 'hidden';
+    overlayRef.current?.querySelector('button')?.focus({ preventScroll: true });
+    return () => {
+      window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+      if (shell) shell.inert = previousInert;
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus?.({ preventScroll: true });
+    };
+  }, []);
+  const handleKey = (event) => {
+    if (event.key === 'Escape' && !busy) onClose();
+    if (event.key !== 'Tab') return;
+    const focusable = [...overlayRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea, select, [tabindex="0"]')].filter((element) => element.getClientRects().length);
+    const first = focusable[0], last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  };
+  return createPortal(<div ref={overlayRef} className="modal-backdrop compose-overlay" role="dialog" aria-modal="true" aria-label={title} onKeyDown={handleKey} style={viewport ? { height: viewport.height, top: viewport.top } : undefined}>{children}</div>, document.body);
+}
+
 function CommunityScreen({ profile, onPostAdded }) {
   const [filter, setFilter] = useState('all');
   const [posts, setPosts] = useState([]);
@@ -682,6 +723,7 @@ function CommunityScreen({ profile, onPostAdded }) {
   const [syncingPost, setSyncingPost] = useState(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [loadError, setLoadError] = useState('');
+  const [composerError, setComposerError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -695,6 +737,7 @@ function CommunityScreen({ profile, onPostAdded }) {
     event.preventDefault();
     setSavedNotice('');
     if (savingPost) return;
+    setComposerError('');
     const form = new FormData(event.currentTarget);
     const file = form.get('photo');
     setSavingPost(true);
@@ -716,7 +759,7 @@ function CommunityScreen({ profile, onPostAdded }) {
       setComposer(false);
       onPostAdded?.();
     } catch (error) {
-      setSavedNotice(t('comm.photoNotSaved', { msg: error.message }));
+      setComposerError(t('comm.photoNotSaved', { msg: error.message }));
     } finally { setSavingPost(false); }
   };
 
@@ -774,8 +817,21 @@ function CommunityScreen({ profile, onPostAdded }) {
     <header className="section-header"><span className="eyebrow">{t('comm.eyebrow')}</span><h1>{t('comm.title')}</h1><p>{t('comm.intro')}</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}<button className="voice-demo-trigger" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button></header>
     <div className="segmented"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>{t('comm.all')}</button><button className={filter === 'tourist' ? 'active' : ''} onClick={() => setFilter('tourist')}>{t('comm.tourist')}</button><button className={filter === 'local' ? 'active' : ''} onClick={() => setFilter('local')}>{t('comm.local')}</button></div>
     <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={postPlace(post)}/> : <div className="post-image-placeholder"><b>{postPlace(post)}</b><small>{t('comm.photoMissing')}</small></div>}<span>{post.era ? t(`era.${post.era}`) : ''}</span></div><div className="post-copy"><small>⌖ {postPlace(post)}</small><ExpandableText>{postText(post)}</ExpandableText><b>{postAuthor(post)}</b>{post.createdAt && <small>{t(post.shared ? 'comm.unreviewed' : 'comm.localOnly')}</small>}{post.createdAt && (!post.shared || post.canDelete) && <DeletePostButton onDelete={() => removePost(post.id)}/>} {sharedCommunityEnabled && post.createdAt && !post.shared && <button type="button" className="secondary" disabled={syncingPost !== null} onClick={() => syncPost(post.id)}>{t('comm.sync')}</button>}</div></article>)}</div>
-    <button className="fab" onClick={() => { setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposer(true); }}>＋</button>
-    {composer && <div className="modal-backdrop"><form className="compose-card memory-compose" onSubmit={submitPost}><button type="button" className="close" onClick={() => setComposer(false)}>×</button><span className="eyebrow">{t('comp.eyebrow')}</span><h2>{t('comp.title')}</h2><PlaceSelect /><label>{t('comp.story')}<textarea name="memory" required placeholder={t('comp.storyPlaceholder')}/></label><PhotoUpload photoStyle={composerPhotoStyle}/><PhotoStylePicker value={composerPhotoStyle} onChange={setComposerPhotoStyle}/><fieldset className="visibility-picker"><legend>{t('comp.visibility')}</legend><div><label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label><label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label></div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> {t('comp.consent')}</label><button className="primary wide">{composerVisibility === 'community' ? t('comp.postBtn') : t('comp.saveBtn')}</button></form></div>}
+    <button className="fab" onClick={() => { setComposerError(''); setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposer(true); }}>＋</button>
+    {composer && <ComposeOverlay title={t('comp.title')} busy={savingPost} onClose={() => setComposer(false)}>
+      <form className="compose-card memory-compose" onSubmit={submitPost} aria-busy={savingPost}>
+        <header className="compose-header"><button type="button" className="close" aria-label={t('common.close')} disabled={savingPost} onClick={() => setComposer(false)}>×</button><span className="eyebrow">{t('comp.eyebrow')}</span><h2>{t('comp.title')}</h2></header>
+        <div className="compose-fields"><fieldset disabled={savingPost} className="compose-inputs">
+          <PlaceSelect /><label>{t('comp.story')}<textarea name="memory" required placeholder={t('comp.storyPlaceholder')}/></label>
+          <PhotoUpload photoStyle={composerPhotoStyle}/><PhotoStylePicker value={composerPhotoStyle} onChange={setComposerPhotoStyle}/>
+          <fieldset className="visibility-picker"><legend>{t('comp.visibility')}</legend><div>
+            <label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label>
+            <label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label>
+          </div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> {t('comp.consent')}</label>
+        </fieldset></div>
+        <footer className="compose-actions">{composerError && <p className="form-error" role="alert">{composerError}</p>}<button type="submit" className="primary wide" disabled={savingPost}>{savingPost ? t('comp.saving') : composerVisibility === 'community' ? t('comp.postBtn') : t('comp.saveBtn')}</button></footer>
+      </form>
+    </ComposeOverlay>}
     {voiceDemo && <div className="modal-backdrop"><div className="compose-card voice-card"><button type="button" className="close" onClick={() => setVoiceDemo(false)}>×</button>{!voiceResult ? <><span className="eyebrow">{t('voice.eyebrow')}</span><h2>{t('voice.title')}</h2><p className="modal-intro">{t('voice.intro')}</p><form onSubmit={submitVoice}><label>{t('voice.place')}<select name="voicePlace" defaultValue="blue-house">{['blue-house', 'lee-tung-street', 'central-market'].map((id) => <option key={id} value={id}>{placeName(getPlaceById(id))}</option>)}</select></label><label className="upload">{t('voice.add')} <input type="file" name="voice" accept="audio/*"/><small>{t('voice.optional')}</small></label><label>{t('voice.transcript')} <textarea name="voiceTranscript" placeholder={t('voice.transcriptPh')}/></label><div className="voice-consents"><label className="consent-row"><input type="checkbox" name="voiceConsent"/> {t('voice.consent')}</label><label className="consent-row"><input type="checkbox" name="voiceReplicaConsent"/> {t('voice.replica')}</label><small>{t('voice.replicaNote')}</small></div><button className="primary wide" disabled={voiceLoading}>{voiceLoading ? t('voice.processing') : t('voice.run')}</button></form></> : <VoiceResult result={voiceResult} onReset={() => setVoiceResult(null)} />}</div></div>}
   </section>;
 }
