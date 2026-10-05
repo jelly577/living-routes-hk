@@ -1,5 +1,5 @@
 import { mockPosts } from '../data/mockPosts.js';
-import { getPlaceById } from '../data/places.js';
+import { findKnownPlace, findPostPlace } from '../data/locations.js';
 import { applyPhotoStyle, deleteMemoryPost, listMemoryPosts, readPhotoFile, saveMemoryPost } from './memoryPostStorage.js';
 import { isPointInBounds, simulateNetwork } from './utils.js';
 
@@ -33,7 +33,7 @@ export async function getPosts({ filter = 'all', bounds, placeId } = {}) {
   const filtered = [...communityPosts, ...mockPosts].filter((post) => {
     if (filter !== 'all' && post.kind !== filter) return false;
     if (placeId && post.placeId !== placeId) return false;
-    const place = getPlaceById(post.placeId);
+    const place = findPostPlace(post);
     return !place || isPointInBounds(place, bounds);
   });
   return simulateNetwork([...filtered]);
@@ -60,7 +60,10 @@ export async function addPost({
 } = {}) {
   if (!text?.trim()) throw new Error('A memory post requires text.');
 
-  const place = getPlaceById(location);
+  // `location` is a known place id ('central-market', 'cp-hku', …), a place
+  // object picked on the map (see makeUserPlace), or free text.
+  const pickedPlace = location && typeof location === 'object' ? location : null;
+  const place = pickedPlace || findKnownPlace(location);
   const image = typeof photo === 'string' ? await applyPhotoStyle(photo, photoStyle) : await readPhotoFile(photo, photoStyle);
   const normalizedVisibility = visibility === 'community' ? 'community' : 'private';
   const post = {
@@ -68,7 +71,16 @@ export async function addPost({
     kind: role,
     era: 'MODERN',
     placeId: place?.id || null,
-    place: place?.nameEn || location || 'Current location',
+    place: place?.nameEn || (typeof location === 'string' && location.trim()) || 'Current location',
+    // Places outside our data files keep their own name and coordinates so the
+    // map can show them again later.
+    placeInfo: pickedPlace ? {
+      nameEn: pickedPlace.nameEn,
+      nameZh: pickedPlace.nameZh,
+      lat: pickedPlace.lat,
+      lng: pickedPlace.lng,
+      googlePlaceId: pickedPlace.googlePlaceId || null,
+    } : null,
     author,
     text: text.trim(),
     image: image || null,
@@ -82,4 +94,17 @@ export async function addPost({
   };
   await saveMemoryPost(post);
   return simulateNetwork(post);
+}
+
+// Places that only exist because someone posted there (Google places or tapped
+// spots), so the map can draw them alongside the check-in points.
+export async function getPostedPlaces() {
+  const saved = await listMemoryPosts();
+  const byId = new Map();
+  saved.forEach((post) => {
+    if (!post.placeInfo || findKnownPlace(post.placeId)) return;
+    const place = findPostPlace(post);
+    if (place && !byId.has(place.id)) byId.set(place.id, place);
+  });
+  return [...byId.values()];
 }
