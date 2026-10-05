@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test:services": "node scripts/service-smoke-test.mjs",
     "test:community": "node --test scripts/shared-community-test.mjs",
+    "test:districts": "node --test scripts/district-posts-test.mjs",
     "demo:handover": "node scripts/handover-demo.mjs",
     "audit:content": "node scripts/content-audit.mjs"
   },

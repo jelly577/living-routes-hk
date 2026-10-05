@@ -14,6 +14,7 @@ function markerIcon(place) {
 }
 
 function checkpointIcon(place) {
+  if (place.kind === 'district') return L.divIcon({ className: 'lr-marker-wrap', html: `<span class="lr-district-marker">${Number(place.postCount) || 0}</span>`, iconSize: [42, 42], iconAnchor: [21, 21], popupAnchor: [0, -22] });
   const cls = place.kind === 'user-place' ? 'lr-cp-marker is-user' : `lr-cp-marker${place.category === 'organizer' ? ' is-organizer' : ''}`;
   const size = place.kind === 'user-place' ? 18 : 28;
   return L.divIcon({ className: 'lr-marker-wrap', html: `<span class="${cls}">${place.kind === 'user-place' ? '' : '✦'}</span>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -14] });

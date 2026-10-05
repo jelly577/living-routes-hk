@@ -6,11 +6,14 @@
 //      and coordinates (post.placeInfo), so they are rebuilt from saved posts.
 import { getPlaceById, places } from './places.js';
 import { checkpoints, getCheckpointById } from './checkpoints.js';
+import { getDistrict } from './districts.js';
 
 export const findKnownPlace = (id) => (id ? getPlaceById(id) || getCheckpointById(id) : undefined);
 
 // Resolve a post's place, falling back to the place info stored on the post.
 export const findPostPlace = (post) => {
+  if (post?.locationType === 'none') return undefined;
+  if (post?.locationType === 'district') return getDistrict(post.districtId);
   const known = findKnownPlace(post?.placeId || post?.location);
   if (known) return known;
   const info = post?.placeInfo;

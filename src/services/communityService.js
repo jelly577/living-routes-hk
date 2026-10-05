@@ -1,4 +1,5 @@
 import { findKnownPlace, findPostPlace } from '../data/locations.js';
+import { getDistrict, aggregateDistrictPosts } from '../data/districts.js';
 import { applyPhotoStyle, deleteMemoryPost, listMemoryPosts, readPhotoFile, saveMemoryPost } from './memoryPostStorage.js';
 import { isPointInBounds, simulateNetwork } from './utils.js';
 import { sharedCommunityEnabled, readSharedPosts, publishSharedPost, removeSharedPost } from './sharedCommunityService.js';
@@ -27,14 +28,15 @@ async function migratePhotoTreatment(post) {
   return migrated;
 }
 
-export async function getPosts({ filter = 'all', bounds, placeId } = {}) {
+export async function getPosts({ filter = 'all', bounds, placeId, districtId } = {}) {
   const savedPosts = await Promise.all((await listMemoryPosts()).map(migratePhotoTreatment));
   const remotePosts = await readSharedPosts();
   const remoteIds = new Set(remotePosts.map((post) => post.id));
   const communityPosts = [...remotePosts, ...savedPosts.filter((post) => post.visibility === 'community' && (!sharedCommunityEnabled || !post.shared) && !remoteIds.has(post.id))];
   const filtered = communityPosts.filter((post) => {
     if (filter !== 'all' && post.kind !== filter) return false;
-    if (placeId && post.placeId !== placeId) return false;
+    const region = districtId || (getDistrict(placeId) ? placeId : null);
+    if (region ? post.districtId !== region : placeId && post.placeId !== placeId) return false;
     const place = findPostPlace(post);
     return !place || isPointInBounds(place, bounds);
   });
@@ -61,8 +63,13 @@ export async function addPost({
   visibility = 'private',
   photoStyle = 'original',
   author = 'You · Prototype user',
+  locationType = 'place',
+  districtId = null,
 } = {}) {
   if (!text?.trim()) throw new Error('A memory post requires text.');
+  const district = locationType === 'none' ? null : getDistrict(districtId);
+  if (locationType === 'district' && !district) throw new Error('Please choose a district, or choose no location.');
+  if (locationType !== 'place') location = null;
 
   // `location` is a known place id ('central-market', 'cp-hku', …), a place
   // object picked on the map (see makeUserPlace), or free text.
@@ -75,7 +82,9 @@ export async function addPost({
     kind: role,
     era: 'MODERN',
     placeId: place?.id || null,
-    place: place?.nameEn || (typeof location === 'string' && location.trim()) || 'Current location',
+    place: district && locationType === 'district' ? district.nameEn : place?.nameEn || (typeof location === 'string' && location.trim()) || 'No location',
+    locationType,
+    districtId: district?.id || null,
     // Places outside our data files keep their own name and coordinates so the
     // map can show them again later.
     placeInfo: pickedPlace ? {
@@ -131,12 +140,8 @@ export async function shareAllSavedCommunityPosts() {
 // Places that only exist because someone posted there (Google places or tapped
 // spots), so the map can draw them alongside the check-in points.
 export async function getPostedPlaces() {
-  const saved = [...await listMemoryPosts(), ...await readSharedPosts()];
-  const byId = new Map();
-  saved.forEach((post) => {
-    if (!post.placeInfo || findKnownPlace(post.placeId)) return;
-    const place = findPostPlace(post);
-    if (place && !byId.has(place.id)) byId.set(place.id, place);
-  });
-  return [...byId.values()];
+  const local = await listMemoryPosts();
+  const saved = [...await readSharedPosts(), ...local.filter((post) => !sharedCommunityEnabled || !post.shared)];
+  // Old precise coordinates remain on the stored post, but do not create new map pins.
+  return aggregateDistrictPosts(saved);
 }

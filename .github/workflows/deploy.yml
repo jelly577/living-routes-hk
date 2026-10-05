@@ -38,6 +38,7 @@ jobs:
         run: |
           npm run test:services
           npm run test:community
+          npm run test:districts
 
       - name: Build
         run: npm run build

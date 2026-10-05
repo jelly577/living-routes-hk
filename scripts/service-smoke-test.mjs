@@ -55,7 +55,7 @@ const checks = [
   ['check-in points stay out of the narrated route', !route.storyPoints.some((p) => p.id.startsWith('cp-'))],
   ['posts can attach to a check-in point', checkpointPost.placeId === 'cp-victoria-park' && checkpointPost.place === 'Victoria Park' && checkpointFeed.some((p) => p.id === checkpointPost.id)],
   ['posts can attach to any place picked on the map', mapPlacePost.placeId === 'gp:TEST123' && mapPlacePost.placeInfo?.lat === 22.28],
-  ['map-picked places come back for the map layer', postedPlaces.some((p) => p.id === 'gp:TEST123' && p.nameEn === 'Test Cafe') && !postedPlaces.some((p) => p.id === 'cp-victoria-park')],
+  ['precise legacy pins do not clutter the public map', !postedPlaces.some((p) => p.id === 'gp:TEST123')],
   ['journey log contains chapters', log.chapters.length > 0],
   ['journey log keeps the user memory', log.chapters[0].text === 'Test memory'],
   ['journey memory updates the recommendation profile', photoLog.nextRecommendation.contentType === 'heritage-facts'],
