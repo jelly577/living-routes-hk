@@ -41,7 +41,7 @@ const mapPlacePost = await addPost({ text: 'Map place memory', location: mapPlac
 const postedPlaces = await getPostedPlaces();
 
 const checks = [
-  ['onboarding uses the approved four preferences', JSON.stringify(interestOptions) === JSON.stringify(['Architecture', 'Culture', 'Food', 'Nature'])],
+  ['onboarding offers the approved interest options', JSON.stringify(interestOptions) === JSON.stringify(['Architecture', 'History', 'Culture', 'Food', 'Nature'])],
   ['route contains five story points', route.storyPoints.length === 5],
   ['10 seconds selects a short story', shortStory.length === 'short'],
   ['80 seconds selects a long story', longStory.length === 'long'],
