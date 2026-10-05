@@ -49,6 +49,7 @@ const checks = [
   ['memory posts persist through the shared storage service', savedPosts.some((post) => post.id === privatePost.id) && savedPosts.some((post) => post.id === communityPost.id)],
   ['private memories stay out of Community', !postsAfterSave.some((post) => post.id === privatePost.id)],
   ['community memories appear in Community', postsAfterSave.some((post) => post.id === communityPost.id)],
+  ['community publishes directly without a review queue', communityPost.status === 'public-unverified' && privatePost.status === 'private'],
   ['users can permanently delete their own memories', !postsAfterDelete.some((post) => post.id === privatePost.id)],
   ['check-in points have unique ids and coordinates', new Set(checkpoints.map((c) => c.id)).size === checkpoints.length && checkpoints.every((c) => c.lat != null && c.lng != null)],
   ['check-in points stay out of the narrated route', !route.storyPoints.some((p) => p.id.startsWith('cp-'))],
