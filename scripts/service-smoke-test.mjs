@@ -45,7 +45,7 @@ const checks = [
   ['route contains five story points', route.storyPoints.length === 5],
   ['10 seconds selects a short story', shortStory.length === 'short'],
   ['80 seconds selects a long story', longStory.length === 'long'],
-  ['community service returns posts', posts.length > 0],
+  ['community does not inject default demonstration posts', Array.isArray(posts) && posts.length === 0],
   ['memory posts persist through the shared storage service', savedPosts.some((post) => post.id === privatePost.id) && savedPosts.some((post) => post.id === communityPost.id)],
   ['private memories stay out of Community', !postsAfterSave.some((post) => post.id === privatePost.id)],
   ['community memories appear in Community', postsAfterSave.some((post) => post.id === communityPost.id)],

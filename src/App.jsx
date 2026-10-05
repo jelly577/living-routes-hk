@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { mockPosts } from './data/mockPosts.js';
 import { identityOptions, interestOptions } from './data/options.js';
 import { getPlaceById } from './data/places.js';
+import { shareSavedPost, shareAllSavedCommunityPosts } from './services/communityService.js';
+import { sharedCommunityEnabled } from './services/sharedCommunityService.js';
 import { checkpoints as checkpointList } from './data/checkpoints.js';
 import { findPostPlace, postLocationGroups } from './data/locations.js';
 import { addPost, analyzeInterestProfile, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPostedPlaces, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
@@ -236,7 +237,9 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
 function PlacePostsSheet({ place, onClose, onPostAdded }) {
   const [posts, setPosts] = useState([]);
   const [composing, setComposing] = useState(false);
-  const [visibility, setVisibility] = useState('community');
+  const [notice, setNotice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [visibility, setVisibility] = useState('private');
   const [photoStyle, setPhotoStyle] = useState('original');
   const [error, setError] = useState('');
   // Places picked on the map are not in our data files, so the post carries them.
@@ -244,7 +247,7 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
 
   useEffect(() => {
     let cancelled = false;
-    getPosts({ placeId: place.id }).then((result) => { if (!cancelled) setPosts(result); });
+    getPosts({ placeId: place.id }).then((result) => { if (!cancelled) setPosts(result); }).catch((error) => { if (!cancelled) setNotice(error.message); });
     return () => { cancelled = true; };
   }, [place.id]);
 
@@ -254,6 +257,7 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
     const formEl = event.currentTarget;
     const form = new FormData(formEl);
     const file = form.get('photo');
+    setSaving(true);
     try {
       const created = await addPost({
         photo: file?.size && photoStyle !== 'none' ? file : undefined,
@@ -264,13 +268,14 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
         visibility,
         photoStyle,
       });
-      setPosts((current) => [created, ...current]);
+      if (created.visibility === 'community') setPosts((current) => [created, ...current]);
+      setNotice(t(created.localSaveFailed ? 'comm.cloudOnly' : created.visibility === 'private' ? 'comm.savedPrivate' : created.shared ? 'comm.postedPending' : 'comm.localOnly'));
       setComposing(false);
       formEl.reset();
       onPostAdded?.(created);
     } catch (err) {
       setError(t('comm.photoNotSaved', { msg: err.message }));
-    }
+    } finally { setSaving(false); }
   };
 
   const eyebrow = place.kind === 'checkpoint'
@@ -283,6 +288,7 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
     {place.image?.url && <div className="place-hero"><img src={place.image.url} alt={placeName(place)} />{place.image.credit && <small>© {place.image.credit}</small>}</div>}
     <span className="eyebrow">{eyebrow}</span>
     <h2>{placeName(place)}</h2>
+    {notice && <p role="status">{notice}</p>}
     {place.noteKey && <p className="place-note">{t(place.noteKey)}</p>}
     {posts.length === 0 ? (
       <p className="posts-empty">{t('posts.empty')}</p>
@@ -306,7 +312,7 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
         {error && <p className="form-error">{error}</p>}
         <div className="inline-actions">
           <button type="button" className="secondary" onClick={() => setComposing(false)}>{t('common.cancel')}</button>
-          <button className="primary" type="submit">{t('posts.submit')}</button>
+          <button className="primary" type="submit" disabled={saving}>{t('posts.submit')}</button>
         </div>
       </form>
     ) : (
@@ -644,14 +650,18 @@ function ExpandableText({ children, compact = false }) {
 function DeletePostButton({ onDelete }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
 
   const remove = async () => {
     setDeleting(true);
-    await onDelete();
+    try { await onDelete(); }
+    catch (error) { setError(error.message); }
+    finally { setDeleting(false); }
   };
 
   if (!confirming) return <button type="button" className="delete-post" onClick={() => setConfirming(true)}>{t('del.delete')}</button>;
   return <div className="delete-confirm">
+    {error && <span role="alert">{error}</span>}
     <span>{t('del.confirm')}</span>
     <button type="button" onClick={remove} disabled={deleting}>{deleting ? t('del.deleting') : t('del.yes')}</button>
     <button type="button" onClick={() => setConfirming(false)} disabled={deleting}>{t('common.cancel')}</button>
@@ -660,7 +670,7 @@ function DeletePostButton({ onDelete }) {
 
 function CommunityScreen({ profile, onPostAdded }) {
   const [filter, setFilter] = useState('all');
-  const [posts, setPosts] = useState(mockPosts);
+  const [posts, setPosts] = useState([]);
   const [composer, setComposer] = useState(false);
   const [composerVisibility, setComposerVisibility] = useState('private');
   const [composerPhotoStyle, setComposerPhotoStyle] = useState('original');
@@ -668,20 +678,26 @@ function CommunityScreen({ profile, onPostAdded }) {
   const [voiceDemo, setVoiceDemo] = useState(false);
   const [voiceResult, setVoiceResult] = useState(null);
   const [voiceLoading, setVoiceLoading] = useState(false);
+  const [savingPost, setSavingPost] = useState(false);
+  const [syncingPost, setSyncingPost] = useState(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     getPosts({ filter }).then((result) => {
-      if (!cancelled) setPosts(result);
-    });
+      if (!cancelled) { setPosts(result); setLoadError(''); }
+    }).catch((error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
-  }, [filter]);
+  }, [filter, refreshVersion]);
 
   const submitPost = async (event) => {
     event.preventDefault();
     setSavedNotice('');
+    if (savingPost) return;
     const form = new FormData(event.currentTarget);
     const file = form.get('photo');
+    setSavingPost(true);
     try {
       const created = await addPost({
         photo: file?.size && form.get('photoStyle') !== 'none' ? file : undefined,
@@ -694,14 +710,37 @@ function CommunityScreen({ profile, onPostAdded }) {
         author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
       });
       if (created.visibility === 'community') setPosts((current) => [created, ...current]);
-      setSavedNotice(created.visibility === 'community'
-        ? t('comm.postedPending')
+      setSavedNotice(created.localSaveFailed ? t('comm.cloudOnly') : created.visibility === 'community'
+        ? t(created.shared ? 'comm.postedPending' : 'comm.localOnly')
         : t('comm.savedPrivate'));
       setComposer(false);
       onPostAdded?.();
     } catch (error) {
       setSavedNotice(t('comm.photoNotSaved', { msg: error.message }));
-    }
+    } finally { setSavingPost(false); }
+  };
+
+  const syncPost = async (id) => {
+    setSyncingPost(id);
+    try {
+      const shared = await shareSavedPost(id);
+      setPosts((current) => current.map((post) => post.id === id ? shared : post));
+      setSavedNotice(t(shared.localSaveFailed ? 'comm.cloudOnly' : 'comm.postedPending'));
+      onPostAdded?.();
+    } catch (error) { setSavedNotice(error.message); }
+    finally { setSyncingPost(null); }
+  };
+
+  const syncAllPosts = async () => {
+    setSyncingPost('all');
+    try {
+      const result = await shareAllSavedCommunityPosts();
+      setSavedNotice(t('comm.syncResult', { count: result.published.length, failed: result.failed.length })
+        + (result.failed.length ? ` · ${result.failed[0].message}` : ''));
+      setRefreshVersion((value) => value + 1);
+      onPostAdded?.();
+    } catch (error) { setSavedNotice(error.message); }
+    finally { setSyncingPost(null); }
   };
 
   const submitVoice = async (event) => {
@@ -727,9 +766,14 @@ function CommunityScreen({ profile, onPostAdded }) {
   };
 
   return <section className="screen community-screen page-enter">
+    <p role="status">{t(sharedCommunityEnabled ? 'comm.sharedReady' : 'comm.localOnly')}</p>
+    {loadError && <p role="alert">{loadError}</p>}
+    <button className="secondary" onClick={() => setRefreshVersion((value) => value + 1)}>{t('comm.refresh')}</button>
+    {sharedCommunityEnabled && <button className="secondary" disabled={syncingPost !== null} onClick={syncAllPosts}>{t('comm.syncAll')}</button>}
+    {!loadError && posts.length === 0 && <p>{t('comm.empty')}</p>}
     <header className="section-header"><span className="eyebrow">{t('comm.eyebrow')}</span><h1>{t('comm.title')}</h1><p>{t('comm.intro')}</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}<button className="voice-demo-trigger" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button></header>
     <div className="segmented"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>{t('comm.all')}</button><button className={filter === 'tourist' ? 'active' : ''} onClick={() => setFilter('tourist')}>{t('comm.tourist')}</button><button className={filter === 'local' ? 'active' : ''} onClick={() => setFilter('local')}>{t('comm.local')}</button></div>
-    <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={postPlace(post)}/> : <div className="post-image-placeholder"><b>{postPlace(post)}</b><small>{t('comm.photoMissing')}</small></div>}<span>{post.era ? t(`era.${post.era}`) : ''}</span></div><div className="post-copy"><small>⌖ {postPlace(post)}</small><ExpandableText>{postText(post)}</ExpandableText><b>{postAuthor(post)}</b>{post.createdAt && <DeletePostButton onDelete={() => removePost(post.id)}/>}</div></article>)}</div>
+    <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={postPlace(post)}/> : <div className="post-image-placeholder"><b>{postPlace(post)}</b><small>{t('comm.photoMissing')}</small></div>}<span>{post.era ? t(`era.${post.era}`) : ''}</span></div><div className="post-copy"><small>⌖ {postPlace(post)}</small><ExpandableText>{postText(post)}</ExpandableText><b>{postAuthor(post)}</b>{post.createdAt && <small>{t(post.shared ? 'comm.unreviewed' : 'comm.localOnly')}</small>}{post.createdAt && (!post.shared || post.canDelete) && <DeletePostButton onDelete={() => removePost(post.id)}/>} {sharedCommunityEnabled && post.createdAt && !post.shared && <button type="button" className="secondary" disabled={syncingPost !== null} onClick={() => syncPost(post.id)}>{t('comm.sync')}</button>}</div></article>)}</div>
     <button className="fab" onClick={() => { setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposer(true); }}>＋</button>
     {composer && <div className="modal-backdrop"><form className="compose-card memory-compose" onSubmit={submitPost}><button type="button" className="close" onClick={() => setComposer(false)}>×</button><span className="eyebrow">{t('comp.eyebrow')}</span><h2>{t('comp.title')}</h2><PlaceSelect /><label>{t('comp.story')}<textarea name="memory" required placeholder={t('comp.storyPlaceholder')}/></label><PhotoUpload photoStyle={composerPhotoStyle}/><PhotoStylePicker value={composerPhotoStyle} onChange={setComposerPhotoStyle}/><fieldset className="visibility-picker"><legend>{t('comp.visibility')}</legend><div><label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label><label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label></div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> {t('comp.consent')}</label><button className="primary wide">{composerVisibility === 'community' ? t('comp.postBtn') : t('comp.saveBtn')}</button></form></div>}
     {voiceDemo && <div className="modal-backdrop"><div className="compose-card voice-card"><button type="button" className="close" onClick={() => setVoiceDemo(false)}>×</button>{!voiceResult ? <><span className="eyebrow">{t('voice.eyebrow')}</span><h2>{t('voice.title')}</h2><p className="modal-intro">{t('voice.intro')}</p><form onSubmit={submitVoice}><label>{t('voice.place')}<select name="voicePlace" defaultValue="blue-house">{['blue-house', 'lee-tung-street', 'central-market'].map((id) => <option key={id} value={id}>{placeName(getPlaceById(id))}</option>)}</select></label><label className="upload">{t('voice.add')} <input type="file" name="voice" accept="audio/*"/><small>{t('voice.optional')}</small></label><label>{t('voice.transcript')} <textarea name="voiceTranscript" placeholder={t('voice.transcriptPh')}/></label><div className="voice-consents"><label className="consent-row"><input type="checkbox" name="voiceConsent"/> {t('voice.consent')}</label><label className="consent-row"><input type="checkbox" name="voiceReplicaConsent"/> {t('voice.replica')}</label><small>{t('voice.replicaNote')}</small></div><button className="primary wide" disabled={voiceLoading}>{voiceLoading ? t('voice.processing') : t('voice.run')}</button></form></> : <VoiceResult result={voiceResult} onReset={() => setVoiceResult(null)} />}</div></div>}

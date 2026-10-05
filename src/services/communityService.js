@@ -1,7 +1,7 @@
-import { mockPosts } from '../data/mockPosts.js';
 import { findKnownPlace, findPostPlace } from '../data/locations.js';
 import { applyPhotoStyle, deleteMemoryPost, listMemoryPosts, readPhotoFile, saveMemoryPost } from './memoryPostStorage.js';
 import { isPointInBounds, simulateNetwork } from './utils.js';
+import { sharedCommunityEnabled, readSharedPosts, publishSharedPost, removeSharedPost } from './sharedCommunityService.js';
 
 async function migratePhotoTreatment(post) {
   if (!post.image) return post;
@@ -29,8 +29,10 @@ async function migratePhotoTreatment(post) {
 
 export async function getPosts({ filter = 'all', bounds, placeId } = {}) {
   const savedPosts = await Promise.all((await listMemoryPosts()).map(migratePhotoTreatment));
-  const communityPosts = savedPosts.filter((post) => post.visibility === 'community');
-  const filtered = [...communityPosts, ...mockPosts].filter((post) => {
+  const remotePosts = await readSharedPosts();
+  const remoteIds = new Set(remotePosts.map((post) => post.id));
+  const communityPosts = [...remotePosts, ...savedPosts.filter((post) => post.visibility === 'community' && (!sharedCommunityEnabled || !post.shared) && !remoteIds.has(post.id))];
+  const filtered = communityPosts.filter((post) => {
     if (filter !== 'all' && post.kind !== filter) return false;
     if (placeId && post.placeId !== placeId) return false;
     const place = findPostPlace(post);
@@ -44,6 +46,8 @@ export async function getMyPosts() {
 }
 
 export async function deletePost(id) {
+  const saved = (await listMemoryPosts()).find((post) => post.id === id);
+  if (saved?.shared || (!saved && sharedCommunityEnabled)) await removeSharedPost(id);
   await deleteMemoryPost(id);
   return simulateNetwork({ id, deleted: true });
 }
@@ -66,7 +70,7 @@ export async function addPost({
   const place = pickedPlace || findKnownPlace(location);
   const image = typeof photo === 'string' ? await applyPhotoStyle(photo, photoStyle) : await readPhotoFile(photo, photoStyle);
   const normalizedVisibility = visibility === 'community' ? 'community' : 'private';
-  const post = {
+  let post = {
     id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `post-${Date.now()}`,
     kind: role,
     era: 'MODERN',
@@ -92,14 +96,42 @@ export async function addPost({
     status: normalizedVisibility === 'community' ? 'pending-review' : 'private',
     createdAt: new Date().toISOString(),
   };
-  await saveMemoryPost(post);
+  if (normalizedVisibility === 'community' && sharedCommunityEnabled) post = await publishSharedPost(post);
+  try { await saveMemoryPost(post); }
+  catch (error) {
+    if (!post.shared) throw error;
+    // The cloud write already succeeded; never tell users to publish it again.
+    post.localSaveFailed = true;
+  }
   return simulateNetwork(post);
+}
+
+export async function shareSavedPost(id) {
+  const post = (await listMemoryPosts()).find((item) => item.id === id);
+  if (!post || post.visibility !== 'community') throw new Error('Choose an existing Community post.');
+  if (post.shared) return post;
+  const shared = await publishSharedPost(post);
+  try { await saveMemoryPost(shared); }
+  catch { shared.localSaveFailed = true; }
+  return shared;
+}
+
+// Only entries explicitly marked public are eligible; never upload private journals.
+export async function shareAllSavedCommunityPosts() {
+  const posts = await listMemoryPosts();
+  const published = [];
+  const failed = [];
+  for (const post of posts.filter((item) => item.visibility === 'community' && !item.shared)) {
+    try { published.push(await shareSavedPost(post.id)); }
+    catch (error) { failed.push({ id: post.id, message: error.message }); }
+  }
+  return { published, failed };
 }
 
 // Places that only exist because someone posted there (Google places or tapped
 // spots), so the map can draw them alongside the check-in points.
 export async function getPostedPlaces() {
-  const saved = await listMemoryPosts();
+  const saved = [...await listMemoryPosts(), ...await readSharedPosts()];
   const byId = new Map();
   saved.forEach((post) => {
     if (!post.placeInfo || findKnownPlace(post.placeId)) return;
