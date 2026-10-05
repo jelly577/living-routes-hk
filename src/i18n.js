@@ -16,6 +16,16 @@ export const getLanguage = () => current;
 
 const STRINGS = {
   en: {
+    'loc.mode': 'Location detail',
+    'loc.district': 'District / area',
+    'loc.place': 'Specific named place',
+    'loc.none': 'No location',
+    'loc.choose': 'Choose an area',
+    'loc.optional': 'Optional · choose an area',
+    'loc.note': 'Choose an area yourself. Stories are grouped by area; your exact position is not collected. Map bubbles are approximate area anchors, not post locations.',
+    'loc.noneNote': 'This post stays in Community and does not appear on the public map.',
+    'loc.stories': '{count} public stories in this area',
+    'loc.browse': 'Browse area stories',
     'brand.small': 'Hong Kong',
     'common.cancel': 'Cancel',
     'common.close': 'Close',
@@ -305,6 +315,16 @@ const STRINGS = {
   },
 
   'zh-HK': {
+    'loc.mode': '位置詳細程度',
+    'loc.district': '街區／地區',
+    'loc.place': '具體有名字的地點',
+    'loc.none': '不標位置',
+    'loc.choose': '選擇地區',
+    'loc.optional': '可選 · 選擇地區',
+    'loc.note': '地區由你選擇，故事按地區聚合，不採集你的精確位置。地圖氣泡僅是地區示意點，不是投稿位置。',
+    'loc.noneNote': '這篇帖子留在社區，不會顯示在公共地圖上。',
+    'loc.stories': '此地區有 {count} 篇公開故事',
+    'loc.browse': '查看地區故事',
     'brand.small': '香港',
     'common.cancel': '取消',
     'common.close': '關閉',
@@ -594,6 +614,16 @@ const STRINGS = {
   },
 
   'zh-CN': {
+    'loc.mode': '位置详细程度',
+    'loc.district': '街区／地区',
+    'loc.place': '具体有名字的地点',
+    'loc.none': '不标位置',
+    'loc.choose': '选择地区',
+    'loc.optional': '可选 · 选择地区',
+    'loc.note': '地区由你选择，故事按地区聚合，不采集你的精确位置。地图气泡仅是地区示意点，不是投稿位置。',
+    'loc.noneNote': '这篇帖子留在社区，不会显示在公共地图上。',
+    'loc.stories': '此地区有 {count} 篇公开故事',
+    'loc.browse': '查看地区故事',
     'brand.small': '香港',
     'common.cancel': '取消',
     'common.close': '关闭',

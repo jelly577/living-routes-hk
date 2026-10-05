@@ -10,7 +10,7 @@ export function placePopupElement(place, { onPost, eyebrow } = {}) {
   const label = document.createElement('span');
   label.className = 'lr-popup-eyebrow';
   label.textContent = eyebrow
-    || (place.kind === 'user-place'
+    || (place.kind === 'district' ? t('loc.stories', { count: place.postCount }) : place.kind === 'user-place'
       ? t('cp.eyebrowUser')
       : `${t('cp.eyebrow')} · ${t(`cp.cat.${place.category}`)}`);
   root.appendChild(label);
@@ -35,7 +35,7 @@ export function placePopupElement(place, { onPost, eyebrow } = {}) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'lr-popup-post';
-    button.textContent = t('mapui.postHere');
+    button.textContent = t(place.kind === 'district' ? 'loc.browse' : 'mapui.postHere');
     button.addEventListener('click', () => onPost(place));
     root.appendChild(button);
   }

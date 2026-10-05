@@ -53,12 +53,19 @@ not validate the deployed SQL policies or replace these real two-browser tests.
   storage, switching browsers or changing website origin. Add permanent Auth
   accounts before promising cross-device author management.
 - Community shows the latest 200 shared posts; refresh loads current data.
+- New posts support a contributor-chosen district, a named place (optionally
+  tagged with a district), or no location. The public map uses one approximate
+  display anchor per district with a public-story count. Private posts are
+  excluded; exact legacy pins no longer produce per-post public markers.
+  Existing unclassified posts keep their data; no district is guessed for them.
+- District names follow https://www.had.gov.hk/en/18_districts/my_map.htm.
+  Display anchors are illustrative, not official district centroids/boundaries.
 - Public posts/photos are genuinely public, including the supplied author name.
   There is an unverified label, not an implemented moderator approval queue.
 - Add moderation, reporting, abuse controls, deletion/account recovery and
   backups before opening a production public community at scale.
-- Existing content-audit failures must be fixed separately before the current
-  deployment workflow can pass. Do not bypass its checks to claim deployment.
+- Existing content gaps remain reported by the upstream report-only audit;
+  service/community/district tests remain blocking deployment checks.
 
 Official references:
 - https://supabase.com/docs/guides/auth/auth-anonymous

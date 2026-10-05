@@ -6,6 +6,7 @@ import { shareSavedPost, shareAllSavedCommunityPosts } from './services/communit
 import { sharedCommunityEnabled } from './services/sharedCommunityService.js';
 import { checkpoints as checkpointList } from './data/checkpoints.js';
 import { findPostPlace, postLocationGroups } from './data/locations.js';
+import { districts, getDistrict } from './data/districts.js';
 import { addPost, analyzeInterestProfile, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPostedPlaces, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
 import { applyPhotoStyle } from './services/memoryPostStorage.js';
 import MapView from './MapView.jsx';
@@ -14,7 +15,7 @@ import { UI_LANGUAGES, defaultNarration, getLanguage, placeName, routeTitle, set
 const ethicsCommitments = ['consent', 'attribution', 'correction', 'benefit'];
 
 // Demo/community posts: show place, text and author in the interface language when a translation exists.
-const postPlace = (post) => { const place = findPostPlace(post); return place ? placeName(place) : post.place; };
+const postPlace = (post) => { if (post.locationType === 'none') return t('loc.none'); const place = findPostPlace(post); return place ? placeName(place) : post.place; };
 const postText = (post) => post.textI18n?.[getLanguage()] || post.text;
 const postAuthor = (post) => post.authorI18n?.[getLanguage()] || post.author;
 
@@ -235,7 +236,7 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
   </div>;
 }
 
-function PlacePostsSheet({ place, onClose, onPostAdded }) {
+function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
   const [posts, setPosts] = useState([]);
   const [composing, setComposing] = useState(false);
   const [notice, setNotice] = useState('');
@@ -264,13 +265,14 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
       const created = await addPost({
         photo: file?.size && photoStyle !== 'none' ? file : undefined,
         text: form.get('memory'),
-        location: isMapPlace ? place : place.id,
+        ...postLocationFromForm(form),
+        author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
         role: 'tourist',
         consent: form.get('consent') === 'on',
         visibility,
         photoStyle,
       });
-      if (created.visibility === 'community') setPosts((current) => [created, ...current]);
+      if (created.visibility === 'community' && (place.kind === 'district' ? created.districtId === place.id : created.placeId === place.id)) setPosts((current) => [created, ...current]);
       setNotice(t(created.localSaveFailed ? 'comm.cloudOnly' : created.visibility === 'private' ? 'comm.savedPrivate' : created.shared ? 'comm.postedPending' : 'comm.localOnly'));
       setComposing(false);
       formEl.reset();
@@ -301,6 +303,7 @@ function PlacePostsSheet({ place, onClose, onPostAdded }) {
     )}
     {composing ? (
       <form className="compose-inline" onSubmit={submitPost}>
+        <PlaceSelect initialPlace={place}/>
         <label className="inline-label">{t('posts.label')}
           <textarea name="memory" required placeholder={t('posts.placeholder')} />
         </label>
@@ -544,22 +547,33 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
     </div>}
     {playerOpen && <PlayerSheet profile={profile} placeId={currentPlaceId} remainingTimeSec={timeToNextSec} onClose={() => setPlayerOpen(false)} />}
     {segment && mode === 'bus' && demoing && <DemoNarration segment={segment} profile={profile} />}
-    {postsPlace && <PlacePostsSheet key={postsPlace.id} place={postsPlace} onClose={() => setPostsPlace(null)} onPostAdded={handlePostAdded} />}
+    {postsPlace && <PlacePostsSheet key={postsPlace.id} place={postsPlace} profile={profile} onClose={() => setPostsPlace(null)} onPostAdded={handlePostAdded} />}
   </section>;
 }
 
 // 发帖地点：文化路线 5 站 + 打卡点 + 其他（自由填写）
-function PlaceSelect() {
-  const [value, setValue] = useState('');
+function postLocationFromForm(form) {
+  const locationType = form.get('locationType') || 'none';
+  return { locationType, districtId: form.get('district') || null,
+    location: locationType === 'place' ? (form.get('place') === '__other' ? (form.get('placeOther') || '').trim() : form.get('place')) : null };
+}
+
+function PlaceSelect({ initialPlace } = {}) {
+  const known = initialPlace && initialPlace.kind !== 'user-place' && initialPlace.kind !== 'district';
+  const [mode, setMode] = useState(known ? 'place' : 'district');
+  const [value, setValue] = useState(known ? initialPlace.id : initialPlace?.kind === 'user-place' ? '__other' : '');
   return <>
-    <label>{t('comp.place')}<select name="place" value={value} onChange={(e) => setValue(e.target.value)}>
+    <label>{t('loc.mode')}<select name="locationType" value={mode} onChange={(event) => setMode(event.target.value)}><option value="district">{t('loc.district')}</option><option value="place">{t('loc.place')}</option><option value="none">{t('loc.none')}</option></select></label>
+    {mode !== 'none' && <label>{t('loc.district')}<select name="district" required={mode === 'district'} defaultValue={getDistrict(initialPlace?.id)?.id || ''}><option value="">{t(mode === 'district' ? 'loc.choose' : 'loc.optional')}</option>{districts.map((district) => <option value={district.id} key={district.id}>{placeName(district)}</option>)}</select></label>}
+    {mode === 'place' && <><label>{t('comp.place')}<select name="place" required value={value} onChange={(e) => setValue(e.target.value)}>
       <option value="">{t('comp.placeChoose')}</option>
       {postLocationGroups().map((group) => <optgroup key={group.key} label={t(group.key === 'heritage' ? 'comp.groupHeritage' : 'comp.groupCheckpoints')}>
         {group.items.map((item) => <option key={item.id} value={item.id}>{placeName(item)}</option>)}
       </optgroup>)}
       <option value="__other">{t('comp.placeOther')}</option>
     </select></label>
-    {value === '__other' && <label>{t('comp.placeOther')}<input name="placeOther" placeholder={t('comp.placeOtherPh')}/></label>}
+    {value === '__other' && <label>{t('comp.placeOther')}<input name="placeOther" required defaultValue={initialPlace?.kind === 'user-place' ? placeName(initialPlace) : ''} placeholder={t('comp.placeOtherPh')}/></label>}</>}
+    <p className="location-note">{t(mode === 'none' ? 'loc.noneNote' : 'loc.note')}</p>
   </>;
 }
 
@@ -745,7 +759,7 @@ function CommunityScreen({ profile, onPostAdded }) {
       const created = await addPost({
         photo: file?.size && form.get('photoStyle') !== 'none' ? file : undefined,
         text: form.get('memory'),
-        location: form.get('place') === '__other' ? (form.get('placeOther') || '').trim() : form.get('place'),
+        ...postLocationFromForm(form),
         role: 'tourist',
         consent: form.get('consent') === 'on',
         visibility: form.get('visibility'),
@@ -876,7 +890,7 @@ function JournalScreen({ profile }) {
       const created = await addPost({
         photo: file?.size && form.get('journalPhotoStyle') !== 'none' ? file : undefined,
         text: form.get('text') || t('jr.defaultText'),
-        location: form.get('place') === '__other' ? (form.get('placeOther') || '').trim() : form.get('place'),
+        ...postLocationFromForm(form),
         visibility: 'private',
         photoStyle: form.get('journalPhotoStyle'),
         author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
