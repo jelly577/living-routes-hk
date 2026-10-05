@@ -52,7 +52,7 @@ async function publishSharedPost(post) {
     if (error) throw new Error(`Photo upload failed: ${error.message}`);
     image = client.storage.from('community-photos').getPublicUrl(imagePath).data.publicUrl;
   }
-  const payload = { ...post, image, imagePath, shared: true, visibility: 'community' };
+  const payload = { ...post, image, imagePath, shared: true, visibility: 'community', status: 'public-unverified', imageStatus: image ? 'user-provided-unverified' : 'not-provided' };
   delete payload.canDelete;
   const { error } = await client.from('community_posts').insert({
     id: post.id, owner_id: session.user.id, payload,

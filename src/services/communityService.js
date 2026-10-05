@@ -88,12 +88,12 @@ export async function addPost({
     author,
     text: text.trim(),
     image: image || null,
-    imageStatus: image ? 'user-provided-pending-review' : 'not-provided',
+    imageStatus: image ? 'user-provided-unverified' : 'not-provided',
     photoStyle: image ? photoStyle : 'none',
     imageTreatmentVersion: image && ['cartoon', 'cyberpunk', 'pencil'].includes(photoStyle) ? 2 : 0,
     visibility: normalizedVisibility,
     consentForAi: Boolean(consent),
-    status: normalizedVisibility === 'community' ? 'pending-review' : 'private',
+    status: normalizedVisibility === 'community' ? 'public-unverified' : 'private',
     createdAt: new Date().toISOString(),
   };
   if (normalizedVisibility === 'community' && sharedCommunityEnabled) post = await publishSharedPost(post);
