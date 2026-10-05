@@ -3,12 +3,20 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { escapeHtml, fetchRoadPath, reverseGeocode } from './osm.js';
 import { placeName, t } from '../i18n.js';
+import { placePopupElement, shortAddress } from './checkpointPopup.js';
+import { makeUserPlace } from '../data/locations.js';
 
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 function markerIcon(place) {
   const html = `<span class="lr-marker">${place.order ?? ''}</span>`;
   return L.divIcon({ className: 'lr-marker-wrap', html, iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -20] });
+}
+
+function checkpointIcon(place) {
+  const cls = place.kind === 'user-place' ? 'lr-cp-marker is-user' : `lr-cp-marker${place.category === 'organizer' ? ' is-organizer' : ''}`;
+  const size = place.kind === 'user-place' ? 18 : 28;
+  return L.divIcon({ className: 'lr-marker-wrap', html: `<span class="${cls}">${place.kind === 'user-place' ? '' : '✦'}</span>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -14] });
 }
 
 function popupHtml(place) {
@@ -30,10 +38,13 @@ function popupHtml(place) {
 }
 
 // 离线/无 key 时的兜底：Leaflet + OSM 底图 + OSRM 路线 + Nominatim 反查
-export default function MapViewLeaflet({ route }) {
+export default function MapViewLeaflet({ route, checkpoints = [], onSelectPlace }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
+  const checkpointLayerRef = useRef(null);
+  const onSelectPlaceRef = useRef(onSelectPlace);
+  useEffect(() => { onSelectPlaceRef.current = onSelectPlace; }, [onSelectPlace]);
   const [offline, setOffline] = useState(false);
   const [roadPath, setRoadPath] = useState(null);
 
@@ -47,6 +58,7 @@ export default function MapViewLeaflet({ route }) {
     tiles.addTo(map);
 
     layerRef.current = L.layerGroup().addTo(map);
+    checkpointLayerRef.current = L.layerGroup().addTo(map);
 
     const onClick = (event) => {
       const { lat, lng } = event.latlng;
@@ -54,9 +66,17 @@ export default function MapViewLeaflet({ route }) {
         .setLatLng(event.latlng)
         .setContent(`<div class="lr-popup"><small>${t('mapui.lookingUp')}</small></div>`)
         .openOn(map);
+      const postAt = (place) => { map.closePopup(); onSelectPlaceRef.current?.(place); };
       reverseGeocode(lat, lng)
-        .then((name) => popup.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">${t('mapui.tapped')}</span><p class="lr-click-name">${escapeHtml(name)}</p></div>`))
-        .catch(() => popup.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">${t('mapui.offlineCoords')}</span><strong>${lat.toFixed(5)}, ${lng.toFixed(5)}</strong></div>`));
+        .then((name) => {
+          const el = placePopupElement(makeUserPlace({ name: shortAddress(name), lat, lng }), { onPost: postAt, eyebrow: t('mapui.tapped') });
+          const full = document.createElement('p');
+          full.className = 'lr-click-name';
+          full.textContent = name;
+          el.insertBefore(full, el.querySelector('.lr-popup-post'));
+          popup.setContent(el);
+        })
+        .catch(() => popup.setContent(placePopupElement(makeUserPlace({ name: `${lat.toFixed(5)}, ${lng.toFixed(5)}`, lat, lng }), { onPost: postAt, eyebrow: t('mapui.offlineCoords') })));
     };
     map.on('click', onClick);
 
@@ -67,6 +87,7 @@ export default function MapViewLeaflet({ route }) {
       map.remove();
       mapRef.current = null;
       layerRef.current = null;
+      checkpointLayerRef.current = null;
     };
   }, []);
 
@@ -101,6 +122,22 @@ export default function MapViewLeaflet({ route }) {
 
     map.fitBounds(polyline.getBounds(), { padding: [48, 48] });
   }, [route, roadPath]);
+
+  // 打卡点图层（与路线分开，不随路线重绘）
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = checkpointLayerRef.current;
+    if (!map || !layer) return;
+    layer.clearLayers();
+    checkpoints.forEach((place) => {
+      if (place.lat == null || place.lng == null) return;
+      const marker = L.marker([place.lat, place.lng], { icon: checkpointIcon(place), zIndexOffset: 500 });
+      marker.bindPopup(() => placePopupElement(place, {
+        onPost: (p) => { map.closePopup(); onSelectPlaceRef.current?.(p); },
+      }));
+      marker.addTo(layer);
+    });
+  }, [checkpoints]);
 
   return (
     <>

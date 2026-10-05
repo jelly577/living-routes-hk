@@ -28,9 +28,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run content and service checks
+      # Content gaps (missing translations / audio) are reported but must not
+      # block deploying the demo site. Code checks below still block.
+      - name: Content audit (report only)
+        run: npm run audit:content
+        continue-on-error: true
+
+      - name: Service checks
         run: |
-          npm run audit:content
           npm run test:services
           npm run test:community
 

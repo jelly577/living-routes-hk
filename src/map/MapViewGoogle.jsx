@@ -3,6 +3,8 @@ import { escapeHtml } from './osm.js';
 import { loadGoogleMaps } from './loadGoogleMaps.js';
 import { segmentThemes } from './segmentThemes.js';
 import { getLanguage, placeName, t } from '../i18n.js';
+import { loadingPopupElement, placePopupElement, shortAddress } from './checkpointPopup.js';
+import { makeUserPlace } from '../data/locations.js';
 
 const segmentThemeText = (theme) => !theme ? '' : getLanguage() === 'zh-HK' ? theme.zh : getLanguage() === 'zh-CN' ? (theme.zhCN || theme.zh) : theme.en;
 
@@ -15,6 +17,38 @@ function pinIcon(gmaps, order, active) {
   const fill = active ? '#c4502f' : '#173e31';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34"><circle cx="17" cy="17" r="15" fill="${fill}" stroke="#ffffff" stroke-width="2.5"/><text x="17" y="23" font-family="Georgia, serif" font-size="15" fill="#ffffff" text-anchor="middle">${order}</text></svg>`;
   return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, anchor: new gmaps.Point(17, 17), scaledSize: new gmaps.Size(34, 34) };
+}
+
+// Check-in points: smaller, no number, so they never read as route stops.
+function checkpointIcon(gmaps, place) {
+  if (place.kind === 'user-place') {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="9" cy="9" r="7" fill="#fffaf2" stroke="#c4502f" stroke-width="3"/></svg>`;
+    return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, anchor: new gmaps.Point(9, 9), scaledSize: new gmaps.Size(18, 18) };
+  }
+  const organizer = place.category === 'organizer';
+  const size = organizer ? 30 : 26;
+  const c = size / 2;
+  const fill = organizer ? '#b8862b' : '#d99a2b';
+  const ring = organizer ? `<circle cx="${c}" cy="${c}" r="${c - 1}" fill="none" stroke="#173e31" stroke-width="1.5"/>` : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${c}" cy="${c}" r="${c - 3}" fill="${fill}" stroke="#ffffff" stroke-width="2.5"/>${ring}<text x="${c}" y="${c + 4.5}" font-family="Arial, sans-serif" font-size="13" fill="#ffffff" text-anchor="middle">✦</text></svg>`;
+  return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, anchor: new gmaps.Point(c, c), scaledSize: new gmaps.Size(size, size) };
+}
+
+// Name + location for a Google point of interest. Uses the Places API (New)
+// when the key allows it, otherwise falls back to geocoding the place id.
+async function resolveGooglePlace(gmaps, geocoder, googlePlaceId, fallbackLatLng) {
+  try {
+    if (!gmaps.places?.Place) throw new Error('Places library unavailable');
+    const place = new gmaps.places.Place({ id: googlePlaceId, requestedLanguage: getLanguage() });
+    await place.fetchFields({ fields: ['displayName', 'location'] });
+    return makeUserPlace({ googlePlaceId, name: place.displayName, lat: place.location.lat(), lng: place.location.lng() });
+  } catch {
+    const results = await new Promise((resolve, reject) => {
+      geocoder.geocode({ placeId: googlePlaceId, language: getLanguage() }, (res, status) => (status === 'OK' && res[0] ? resolve(res) : reject(new Error(status))));
+    });
+    const loc = results[0].geometry?.location || fallbackLatLng;
+    return makeUserPlace({ googlePlaceId, name: shortAddress(results[0].formatted_address), lat: loc.lat(), lng: loc.lng() });
+  }
 }
 
 function blueDotIcon(gmaps) {
@@ -84,13 +118,15 @@ function buildJourney(path, storyPoints, gmaps) {
   return { cum, nearest, stations, segments };
 }
 
-export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, mode = 'bus', onSegmentChange, onNearbyPlace, onDemoingChange }) {
+export default function MapViewGoogle({ route, checkpoints = [], onFail, onArrive, onSelectPlace, mode = 'bus', onSegmentChange, onNearbyPlace, onDemoingChange }) {
   const containerRef = useRef(null);
   const gmapsRef = useRef(null);
   const mapRef = useRef(null);
   const routePolylineRef = useRef(null);
   const infoWindowRef = useRef(null);
   const markersRef = useRef([]); // [{ place, marker }]
+  const checkpointMarkersRef = useRef([]); // 打卡点图层 [{ place, marker }]，不参与旅程
+  const routeBoundsRef = useRef(null);
   const routeRef = useRef(route);
   const routePathRef = useRef(null); // Directions 返回的 overview_path（沿道路）
   const journeyRef = useRef(null);  // 站间路段预计算
@@ -112,6 +148,7 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
   const [status, setStatus] = useState(null);
   const [segment, setSegment] = useState(null); // 当前讲解段（连贯面板）
   const [demoProgress, setDemoProgress] = useState(0);
+  const [showingCheckins, setShowingCheckins] = useState(false);
 
   useEffect(() => { routeRef.current = route; }, [route]);
   const onArriveRef = useRef(onArrive);
@@ -147,18 +184,42 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
         infoWindowRef.current = new gmaps.InfoWindow();
 
         const geocoder = new gmaps.Geocoder();
+        const openPopup = (content, position) => {
+          infoWindowRef.current.close();
+          infoWindowRef.current.setContent(content);
+          infoWindowRef.current.setPosition(position);
+          infoWindowRef.current.open(map);
+        };
+        const postAt = (place) => {
+          infoWindowRef.current.close();
+          onSelectPlaceRef.current?.(place);
+        };
         map.addListener('click', (event) => {
           const latlng = event.latLng;
-          infoWindowRef.current.close();
-          infoWindowRef.current.setContent(`<div class="lr-popup"><small>${t('mapui.lookingUp')}</small></div>`);
-          infoWindowRef.current.setPosition(latlng);
-          infoWindowRef.current.open(map);
-          reverseGeocodeLine(geocoder, latlng, 'en')
-            .then((en) => {
-              infoWindowRef.current.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">${t('mapui.tapped')}</span><p class="lr-click-name">${escapeHtml(en)}</p></div>`);
+          // Tapped one of Google's own place icons (shop, school, park…):
+          // replace Google's default bubble with ours, which can open the post sheet.
+          if (event.placeId) {
+            event.stop();
+            openPopup(loadingPopupElement(t('mapui.loadingPlace')), latlng);
+            resolveGooglePlace(gmaps, geocoder, event.placeId, latlng)
+              .then((place) => openPopup(placePopupElement(place, { onPost: postAt, eyebrow: t('mapui.tapped') }), latlng))
+              .catch(() => openPopup(placePopupElement(makeUserPlace({ name: `${latlng.lat().toFixed(5)}, ${latlng.lng().toFixed(5)}`, lat: latlng.lat(), lng: latlng.lng() }), { onPost: postAt, eyebrow: t('mapui.offlineCoords') }), latlng));
+            return;
+          }
+          openPopup(loadingPopupElement(t('mapui.lookingUp')), latlng);
+          reverseGeocodeLine(geocoder, latlng, getLanguage())
+            .then((address) => {
+              const place = makeUserPlace({ name: shortAddress(address), lat: latlng.lat(), lng: latlng.lng() });
+              const el = placePopupElement(place, { onPost: postAt, eyebrow: t('mapui.tapped') });
+              const full = document.createElement('p');
+              full.className = 'lr-click-name';
+              full.textContent = address;
+              el.insertBefore(full, el.querySelector('.lr-popup-post'));
+              openPopup(el, latlng);
             })
             .catch(() => {
-              infoWindowRef.current.setContent(`<div class="lr-popup"><span class="lr-popup-eyebrow">${t('mapui.offlineCoords')}</span><strong>${latlng.lat().toFixed(5)}, ${latlng.lng().toFixed(5)}</strong></div>`);
+              const place = makeUserPlace({ name: `${latlng.lat().toFixed(5)}, ${latlng.lng().toFixed(5)}`, lat: latlng.lat(), lng: latlng.lng() });
+              openPopup(placePopupElement(place, { onPost: postAt, eyebrow: t('mapui.offlineCoords') }), latlng);
             });
         });
 
@@ -221,6 +282,7 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
         strokeWeight: 5,
         strokeOpacity: 0.9,
       });
+      routeBoundsRef.current = result.routes[0].bounds;
       map.fitBounds(result.routes[0].bounds);
       map.setTilt(45);
     };
@@ -235,6 +297,49 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
       },
     );
   }, [ready, route, mode]);
+
+  // 打卡点图层：独立于路线和试乘，常显；点击直接打开该地点的投稿面板
+  useEffect(() => {
+    if (!ready) return;
+    const gmaps = window.google.maps;
+    const map = mapRef.current;
+    checkpointMarkersRef.current.forEach(({ marker }) => marker.setMap(null));
+    checkpointMarkersRef.current = [];
+    checkpoints.forEach((place) => {
+      if (place.lat == null || place.lng == null) return;
+      const marker = new gmaps.Marker({
+        position: { lat: place.lat, lng: place.lng },
+        map,
+        icon: checkpointIcon(gmaps, place),
+        title: placeName(place),
+        zIndex: 50,
+      });
+      marker.addListener('click', () => {
+        infoWindowRef.current.setContent(placePopupElement(place, {
+          onPost: (p) => { infoWindowRef.current.close(); onSelectPlaceRef.current?.(p); },
+        }));
+        infoWindowRef.current.open({ map, anchor: marker });
+      });
+      checkpointMarkersRef.current.push({ place, marker });
+    });
+  }, [ready, checkpoints]);
+
+  // 「打卡点」按钮：缩放到所有打卡点；再按一次回到路线
+  const toggleCheckins = () => {
+    const gmaps = gmapsRef.current;
+    const map = mapRef.current;
+    if (!gmaps || !map) return;
+    if (showingCheckins) {
+      if (routeBoundsRef.current) map.fitBounds(routeBoundsRef.current);
+      setShowingCheckins(false);
+      return;
+    }
+    const bounds = new gmaps.LatLngBounds();
+    checkpoints.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+    routeRef.current?.storyPoints?.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+    map.fitBounds(bounds, 40);
+    setShowingCheckins(true);
+  };
 
   // 步行模式：围绕各遗产点画 geofence 圈（半径 = triggerRadiusM）
   useEffect(() => {
@@ -298,7 +403,7 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
     const gmaps = gmapsRef.current;
     if (!gmaps?.geometry?.spherical) return;
     let hit = null;
-    for (const { place, marker } of markersRef.current) {
+    for (const { place, marker } of [...markersRef.current, ...checkpointMarkersRef.current]) {
       const d = gmaps.geometry.spherical.computeDistanceBetween(latlng, new gmaps.LatLng(place.lat, place.lng));
       const inRange = d <= (place.triggerRadiusM || 150);
       marker.setAnimation(inRange ? gmaps.Animation.BOUNCE : null);
@@ -411,7 +516,7 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
     nearbyRef.current = null;
     onNearbyPlaceRef.current?.(null);
     resetArrival();
-    markersRef.current.forEach(({ marker }) => marker.setAnimation(null));
+    [...markersRef.current, ...checkpointMarkersRef.current].forEach(({ marker }) => marker.setAnimation(null));
     setLocating(false);
     setStatus(null);
     setSegment(null);
@@ -535,7 +640,7 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
     announcedRef.current = null;
     nearbyRef.current = null;
     onNearbyPlaceRef.current?.(null);
-    markersRef.current.forEach(({ marker }) => marker.setAnimation(null));
+    [...markersRef.current, ...checkpointMarkersRef.current].forEach(({ marker }) => marker.setAnimation(null));
     setSegment(null);
     onSegmentChangeRef.current?.(null);
     setDemoProgress(0);
@@ -559,6 +664,11 @@ export default function MapViewGoogle({ route, onFail, onArrive, onSelectPlace, 
       {mode !== 'walk' && <button className={`lr-demo ${demoing ? 'is-on' : ''}`} onClick={toggleDemo} title={demoing ? t('mapui.stopDemo') : t('mapui.startDemo')} aria-label={demoing ? t('mapui.stopDemo') : t('mapui.startDemo')}>
         {demoing ? '■' : '▶'}
       </button>}
+      {!demoing && checkpoints.length > 0 && (
+        <button className={`lr-checkins ${showingCheckins ? 'is-on' : ''}`} onClick={toggleCheckins}>
+          {showingCheckins ? `← ${t('map.backToRoute')}` : `✦ ${t('map.checkins')}`}
+        </button>
+      )}
       {demoing && (
         <div className="lr-demo-controls">
           <input className="lr-demo-range" type="range" min="0" max="100" step="0.5" value={Math.round(demoProgress * 100)} onChange={scrubDemo} onPointerDown={() => { scrubbingRef.current = true; }} onPointerUp={() => { scrubbingRef.current = false; }} aria-label={t('mapui.demoProgress')} />
