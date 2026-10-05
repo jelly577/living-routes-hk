@@ -249,6 +249,7 @@ const STRINGS = {
     'vr.again': 'Process another sample',
 
     'jr.private': 'Private · Only you can see this',
+    'jr.empty': 'Record your journey first. Your own public posts and private memories saved in this browser will appear here; no sample stories will be added.',
     'jr.eyebrow': 'YOUR TIME-WOVEN JOURNEY',
     'jr.title': 'Private Journal',
     'jr.intro': 'Gather fragments now. Let AI weave them into a story when the journey ends.',
@@ -548,6 +549,7 @@ const STRINGS = {
     'vr.again': '處理另一段示範',
 
     'jr.private': '私人 · 只有你看到',
+    'jr.empty': '先記錄你的旅程吧。你在此瀏覽器保存的公開帖子和私人記憶會顯示在這裡，不會加入示例故事。',
     'jr.eyebrow': '你的時光旅程',
     'jr.title': '私人日記',
     'jr.intro': '先收集旅途片段，旅程結束後讓 AI 把它們串成一個故事。',
@@ -847,6 +849,7 @@ const STRINGS = {
     'vr.again': '处理另一段示例',
 
     'jr.private': '私密 · 仅自己可见',
+    'jr.empty': '先记录你的旅程吧。你在此浏览器保存的公开帖子和私人记忆会显示在这里，不会加入示例故事。',
     'jr.eyebrow': '你的时光旅程',
     'jr.title': '私人日志',
     'jr.intro': '先收集旅途片段，旅程结束后让 AI 把它们串成一个故事。',

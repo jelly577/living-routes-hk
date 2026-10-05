@@ -12,6 +12,10 @@ import {
 import { interestOptions } from '../src/data/options.js';
 import { checkpoints } from '../src/data/checkpoints.js';
 import { makeUserPlace } from '../src/data/locations.js';
+import assert from 'node:assert/strict';
+
+await assert.rejects(generateJourneyLog(), /Save your own journey memories/);
+await assert.rejects(generateJourneyLog({ memories: [] }), /Save your own journey memories/);
 
 const route = await getRoute({ mode: 'demo' });
 const shortStory = await getStoryForJourney({
@@ -58,6 +62,7 @@ const checks = [
   ['precise legacy pins do not clutter the public map', !postedPlaces.some((p) => p.id === 'gp:TEST123')],
   ['journey log contains chapters', log.chapters.length > 0],
   ['journey log keeps the user memory', log.chapters[0].text === 'Test memory'],
+  ['journey log only contains supplied memories, not default chapters', log.chapters.length === 1 && log.memoryCount === 1 && log.status === 'memory-assembled'],
   ['journey memory updates the recommendation profile', photoLog.nextRecommendation.contentType === 'heritage-facts'],
   ['culture bite is available as a third story type', cultureBite.story.contentType === 'culture-bites' && cultureBite.story.language === 'zh-HK'],
   ['voice demo returns a Cantonese transcript', voice.transcription.language === 'zh-HK'],
