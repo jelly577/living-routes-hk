@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { parseExif, resolveTakenAt } from '../src/services/photoMetadata.js';
+import { animateMemories, clipKey, fallbackMotion } from '../src/services/animationService.js';
 import {
   buildAiRequest, buildMemoirStops, generateMemoirScript, memoirDateBounds, mergeAiScript, templateMemoirScript,
 } from '../src/services/memoirService.js';
@@ -84,4 +85,40 @@ test('AI request never contains GPS and AI gaps fall back to the template', asyn
   const failed = await generateMemoirScript(stops, { allowAi: true, requestAi: async () => { throw new Error('offline'); } });
   assert.equal(failed.fallbackReason, 'ai-failed');
   assert.equal(failed.source, 'template');
+});
+
+test('AI motion prompts are kept, missing ones stay empty for the fallback', async () => {
+  const { stops } = buildMemoirStops(posts);
+  const merged = mergeAiScript(templateMemoirScript(stops, 'en'), { stops: [{ stopId: 'stop-1', memories: [{ postId: 'a', caption: 'x', motion: 'The person takes a bite, steam rising.' }] }] });
+  assert.equal(merged.stops[0].memories[0].motion, 'The person takes a bite, steam rising.');
+  assert.equal(merged.stops[0].memories[1].motion, '');
+});
+
+test('photo animation: cache hits skip the model, jobs are polled, failures stay still photos', async () => {
+  const cache = new Map([[clipKey('cached', 'p'), 'old-clip']]);
+  const calls = [];
+  let polls = 0;
+  const request = async (action, payload) => {
+    calls.push(action);
+    if (action === 'start') return { jobId: payload.prompt === 'boom' ? 'bad' : `job-${payload.prompt}` };
+    if (action === 'status') { polls += 1; return payload.jobId === 'bad' ? { status: 'failed', error: 'nsfw filter' } : { status: polls > 1 ? 'succeeded' : 'processing' }; }
+    return `clip-for-${payload.jobId}`;
+  };
+  const updates = [];
+  const clips = await animateMemories([
+    { postId: 'cached', image: 'data:', prompt: 'p' },
+    { postId: 'new', image: 'data:', prompt: 'eat' },
+    { postId: 'broken', image: 'data:', prompt: 'boom' },
+  ], {
+    request, pollMs: 1, concurrency: 1,
+    onUpdate: (id, u) => updates.push(`${id}:${u.status}`),
+    readCache: async (key) => cache.get(key) || null,
+    writeCache: async (key, blob) => { cache.set(key, blob); },
+  });
+  assert.deepEqual(clips, { cached: 'old-clip', new: 'clip-for-job-eat' });
+  assert.ok(updates.includes('broken:failed'));
+  assert.equal(cache.get(clipKey('new', 'eat')), 'clip-for-job-eat');
+  assert.equal(calls.filter((c) => c === 'start').length, 2); // never for the cached photo
+  assert.notEqual(clipKey('a', 'one'), clipKey('a', 'two')); // edited motion → new clip
+  assert.match(fallbackMotion('和小猫合影'), /和小猫合影/);
 });

@@ -90,3 +90,24 @@ panel: the selected memories' notes, their dates, place *names*, and photos
 downscaled to 768 px. Exact photo GPS never leaves the device (it is also
 stripped from every public Community post). If the function is missing or
 fails, the app falls back to the user's own words and says so.
+
+## Moving photos in the memoir video (optional)
+
+"Make the photos move" turns each memoir photo into a few seconds of motion
+with an image-to-video model on Replicate. The `memoir` function writes one
+motion description per photo (users can edit it); without it, the user's
+own note is used.
+
+1. `supabase secrets set REPLICATE_API_TOKEN=...`
+2. Optional model choice (default `wan-video/wan-2.2-i2v-fast`, fast and cheap):
+   `supabase secrets set ANIMATE_MODEL=bytedance/seedance-1-lite` (or another
+   Replicate image-to-video model that takes `image` + `prompt`), and any
+   model-specific inputs as JSON: `supabase secrets set ANIMATE_EXTRA_INPUT='{"duration":5}'`.
+3. `supabase functions deploy animate` (source: `functions/animate/index.ts`).
+
+Each photo is one paid generation (roughly 30 s – 3 min). Finished clips are
+cached in the browser (IndexedDB `living-routes-hk-clips`), keyed by photo
+and motion text, so re-making a memoir does not pay again; editing a motion
+description marks that photo for re-generation. Photos are sent only after
+the separate consent tick in the memoir panel; GPS is never sent. A photo
+whose generation fails stays a still photo with a gentle zoom.

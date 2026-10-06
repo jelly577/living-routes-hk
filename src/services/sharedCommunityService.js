@@ -83,7 +83,23 @@ async function requestMemoirAi(body) {
   if (!data || data.error) throw new Error(data?.error || 'Memoir AI returned nothing.');
   return data;
 }
-return { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi };
+// Photo → motion clip via the `animate` Edge Function (start / status / download).
+async function requestAnimation(action, payload = {}) {
+  await ownerSession();
+  const { data, error } = await client.functions.invoke('animate', { body: { action, ...payload } });
+  if (error) {
+    let detail = error.message;
+    try { detail = (await error.context?.json?.())?.error || detail; } catch { /* keep message */ }
+    throw new Error(detail);
+  }
+  if (action === 'download') {
+    if (!(data instanceof Blob) || !data.size) throw new Error('The clip download was empty.');
+    return new Blob([data], { type: 'video/mp4' });
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+return { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi, requestAnimation };
 }
 
-export const { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi } = createSharedCommunityBackend(client);
+export const { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi, requestAnimation } = createSharedCommunityBackend(client);

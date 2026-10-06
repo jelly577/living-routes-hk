@@ -217,6 +217,7 @@ export function mergeAiScript(template, ai) {
         memories: stop.memories.map((memory) => ({
           ...memory,
           caption: text(aiMemories.get(memory.postId)?.caption, 160) || memory.caption,
+          motion: text(aiMemories.get(memory.postId)?.motion, 300) || memory.motion || '',
         })),
       };
     }),
@@ -230,7 +231,7 @@ export function buildAiRequest(stops, { language = 'en', images = {} } = {}) {
     language,
     stops: stops.map((stop) => ({
       stopId: stop.id,
-      place: stopLabel(stop, 'en'),
+      place: stopLabel(stop, language), // in the video's language, so AI titles match
       day: stop.day,
       memories: stop.memories.map(({ post, day }) => ({
         postId: post.id,

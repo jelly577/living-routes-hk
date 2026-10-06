@@ -3,10 +3,13 @@ import { getLanguage, t } from '../i18n.js';
 import {
   MEMOIR_LANGUAGES, buildMemoirStops, generateMemoirScript, memoirDateBounds, memoirLabels,
 } from '../services/memoirService.js';
-import { requestMemoirAi, sharedCommunityEnabled } from '../services/sharedCommunityService.js';
+import { requestAnimation, requestMemoirAi, sharedCommunityEnabled } from '../services/sharedCommunityService.js';
+import { animateMemories, clipKey, fallbackMotion, readCachedClip } from '../services/animationService.js';
 import { buildNextRecommendation, deriveInterestSignals } from '../services/recommendationService.js';
-import { createMemoirPlan, drawMemoirFrame, VIDEO_SIZE } from './memoirRenderer.js';
-import { imageToJpegDataUrl, loadMemoirImages, pickVideoFormat, recordMemoir } from './memoirMedia.js';
+import { allClips, createMemoirPlan, drawMemoirFrame, VIDEO_SIZE } from './memoirRenderer.js';
+import {
+  createClipElement, imageToJpegDataUrl, loadMemoirImages, pickVideoFormat, recordMemoir, releaseClips, syncClips,
+} from './memoirMedia.js';
 
 const LANGUAGE_NAMES = { en: 'English', 'zh-HK': '繁體中文 · 粵語', 'zh-CN': '简体中文 · 普通话' };
 const fmtTime = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
@@ -26,8 +29,16 @@ export default function MemoirStudio({ memories }) {
   const [time, setTime] = useState(0);
   const [progress, setProgress] = useState(0);
   const [video, setVideo] = useState(null);
+  const [animateConsent, setAnimateConsent] = useState(false);
+  const [clipStatus, setClipStatus] = useState({}); // postId → { status, error? }
+  const [clipEls, setClipEls] = useState({}); // postId → <video>
   const canvasRef = useRef(null);
   const clockRef = useRef({ startedAt: 0, offset: 0 });
+  const timeRef = useRef(0);
+  timeRef.current = time;
+  const clipsRef = useRef({});
+  clipsRef.current = clipEls;
+  useEffect(() => () => releaseClips(clipsRef.current), []);
 
   useEffect(() => { setFrom(bounds.from); setTo(bounds.to); }, [bounds.from, bounds.to]);
   useEffect(() => () => { if (video) URL.revokeObjectURL(video.url); }, [video]);
@@ -35,20 +46,21 @@ export default function MemoirStudio({ memories }) {
   const selection = useMemo(() => buildMemoirStops(memories, { from, to }), [memories, from, to]);
 
   const plan = useMemo(() => (draft ? createMemoirPlan({
-    stops: draft.stops, script: draft.script, images: draft.images, labels: memoirLabels(draft.script.language),
-  }) : null), [draft]);
+    stops: draft.stops, script: draft.script, images: draft.images, clips: clipEls, labels: memoirLabels(draft.script.language),
+  }) : null), [draft, clipEls]);
 
   // Preview playback (also redraws on scrub or caption edits).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!plan || !canvas || busy === 'recording') return undefined;
     const ctx = canvas.getContext('2d');
-    if (!playing) { drawMemoirFrame(ctx, plan, time); return undefined; }
+    if (!playing) { allClips(plan).forEach((clip) => clip.pause()); syncClips(plan, time, 'seek'); drawMemoirFrame(ctx, plan, time); return undefined; }
     let frame = 0;
     clockRef.current = { startedAt: performance.now(), offset: time >= plan.duration ? 0 : time };
     const tick = (now) => {
       const current = clockRef.current.offset + (now - clockRef.current.startedAt) / 1000;
       if (current >= plan.duration) { drawMemoirFrame(ctx, plan, plan.duration); setTime(plan.duration); setPlaying(false); return; }
+      syncClips(plan, current, 'play');
       drawMemoirFrame(ctx, plan, current);
       setTime(current);
       frame = requestAnimationFrame(tick);
@@ -58,11 +70,73 @@ export default function MemoirStudio({ memories }) {
     // `time` is read only when playback (re)starts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan, playing, busy]);
-  useEffect(() => { if (plan && !playing && canvasRef.current) drawMemoirFrame(canvasRef.current.getContext('2d'), plan, time); }, [time, plan, playing]);
+  useEffect(() => {
+    if (!plan || playing || !canvasRef.current) return;
+    syncClips(plan, time, 'seek');
+    drawMemoirFrame(canvasRef.current.getContext('2d'), plan, time);
+  }, [time, plan, playing]);
+  // A scrubbed clip frame arrives asynchronously: redraw once it has been decoded.
+  useEffect(() => {
+    if (!plan) return undefined;
+    const redraw = () => { if (!playing && canvasRef.current && busy !== 'recording') drawMemoirFrame(canvasRef.current.getContext('2d'), plan, timeRef.current); };
+    const clips = allClips(plan);
+    clips.forEach((clip) => clip.addEventListener('seeked', redraw));
+    return () => clips.forEach((clip) => clip.removeEventListener('seeked', redraw));
+  }, [plan, playing, busy]);
+
+  const motionFor = (memory, post) => (memory.motion || fallbackMotion(post?.text)).trim();
+
+  // Clips already generated earlier (same photo + motion) come back for free.
+  const adoptClip = async (postId, blob) => {
+    const element = await createClipElement(blob);
+    if (element) setClipEls((current) => { if (current[postId]) releaseClips({ [postId]: current[postId] }); return { ...current, [postId]: element }; });
+    return element;
+  };
+  const loadCachedClipsFor = async (stops, script) => {
+    for (const stop of script.stops) {
+      const memoirStop = stops.find((item) => item.id === stop.stopId);
+      for (const memory of stop.memories) {
+        const post = memoirStop?.memories.find((item) => item.post.id === memory.postId)?.post;
+        if (!post?.image) continue;
+        const blob = await readCachedClip(clipKey(memory.postId, motionFor(memory, post)));
+        if (blob && await adoptClip(memory.postId, blob)) setClipStatus((current) => ({ ...current, [memory.postId]: { status: 'cached' } }));
+      }
+    }
+  };
+
+  const animatePhotos = async () => {
+    if (!draft) return;
+    setError(''); setVideo(null); setPlaying(false); setBusy('animating');
+    try {
+      const items = draft.script.stops.flatMap((stop) => {
+        const memoirStop = draft.stops.find((item) => item.id === stop.stopId);
+        return stop.memories.map((memory) => {
+          const post = memoirStop.memories.find((item) => item.post.id === memory.postId)?.post;
+          const image = draft.images[memory.postId];
+          const status = clipStatus[memory.postId]?.status;
+          if (!post || !image || (clipEls[memory.postId] && status !== 'edited')) return null;
+          const dataUrl = imageToJpegDataUrl(image, 1024, 0.85);
+          return dataUrl ? { postId: memory.postId, image: dataUrl, prompt: motionFor(memory, post) } : null;
+        }).filter(Boolean);
+      });
+      await animateMemories(items, {
+        request: requestAnimation,
+        onUpdate: (postId, update) => {
+          setClipStatus((current) => ({ ...current, [postId]: { status: update.status, error: update.error } }));
+          if (update.blob) adoptClip(postId, update.blob);
+        },
+      });
+    } catch (problem) {
+      setError(problem.message || String(problem));
+    } finally {
+      setBusy('');
+    }
+  };
 
   const prepare = async () => {
     setError(''); setVideo(null); setPlaying(false); setTime(0);
     if (!selection.stops.length) { setError(t('memo.nothing')); return; }
+    releaseClips(clipEls); setClipEls({}); setClipStatus({});
     setBusy('preparing');
     try {
       await document.fonts?.ready;
@@ -74,6 +148,7 @@ export default function MemoirStudio({ memories }) {
         language, allowAi, images: aiImages, requestAi: sharedCommunityEnabled ? requestMemoirAi : null,
       });
       setDraft({ stops: selection.stops, images, script, truncated: selection.truncated, total: selection.totalAvailable });
+      await loadCachedClipsFor(selection.stops, script);
       setPlaying(true);
     } catch (problem) {
       setError(problem.message || String(problem));
@@ -90,6 +165,19 @@ export default function MemoirStudio({ memories }) {
         ...current.script,
         stops: current.script.stops.map((stop) => (stop.stopId !== stopId ? stop : {
           ...stop, memories: stop.memories.map((memory) => (memory.postId === postId ? { ...memory, caption } : memory)),
+        })),
+      },
+    }));
+  };
+  const editMotion = (stopId, postId, motion) => {
+    setVideo(null);
+    if (clipEls[postId]) setClipStatus((current) => ({ ...current, [postId]: { status: 'edited' } }));
+    setDraft((current) => ({
+      ...current,
+      script: {
+        ...current.script,
+        stops: current.script.stops.map((stop) => (stop.stopId !== stopId ? stop : {
+          ...stop, memories: stop.memories.map((memory) => (memory.postId === postId ? { ...memory, motion } : memory)),
         })),
       },
     }));
@@ -118,6 +206,15 @@ export default function MemoirStudio({ memories }) {
   }[draft.script.fallbackReason];
   const signals = useMemo(() => (draft ? deriveInterestSignals(draft.stops.flatMap((stop) => stop.memories.map(({ post }) => post))) : []), [draft]);
   const recordable = Boolean(pickVideoFormat());
+  const photoIds = draft ? draft.stops.flatMap((stop) => stop.memories.filter(({ post }) => draft.images[post.id]).map(({ post }) => post.id)) : [];
+  const photoCount = photoIds.length;
+  const animatedCount = photoIds.filter((id) => clipEls[id] && clipStatus[id]?.status !== 'edited').length;
+  const animatable = photoCount - animatedCount;
+  const statusLabel = (postId) => {
+    const status = clipStatus[postId]?.status;
+    if (!status) return null;
+    return <span className={`clip-status clip-${status}`} title={clipStatus[postId]?.error || ''}>{t(`memo.clip.${status}`)}</span>;
+  };
 
   return <section className="memoir-studio">
     <header>
@@ -155,6 +252,18 @@ export default function MemoirStudio({ memories }) {
           <small>{fmtTime(time)} / {fmtTime(plan.duration)}</small>
         </div>}
 
+      <div className="memoir-animate">
+        <b>{t('memo.animTitle')}</b>
+        <p>{t('memo.animIntro')}</p>
+        {sharedCommunityEnabled ? <>
+          <label className="consent-row memoir-consent"><input type="checkbox" checked={animateConsent} onChange={(event) => setAnimateConsent(event.target.checked)}/><span>{t('memo.animConsent')}</span></label>
+          <button type="button" className="secondary wide" disabled={Boolean(busy) || !animateConsent || !animatable} onClick={animatePhotos}>
+            {busy === 'animating' ? t('memo.animBusy', { done: animatedCount, n: photoCount }) : animatable ? t('memo.animButton', { n: animatable }) : t('memo.animDone')}
+          </button>
+          {busy === 'animating' && <small>{t('memo.animWait')}</small>}
+        </> : <small>{t('memo.animNotConfigured')}</small>}
+      </div>
+
       <button type="button" className="primary wide" disabled={Boolean(busy) || !recordable} onClick={exportVideo}>{t('memo.export')}<span>↓</span></button>
       <p className="memoir-hint">{recordable ? t('memo.exportHint', { s: Math.round(plan.duration) }) : t('memo.noRecorder')}</p>
       {video && <div className="memoir-video page-enter">
@@ -172,10 +281,13 @@ export default function MemoirStudio({ memories }) {
             <b><i>{String(index + 1).padStart(2, '0')}</i>{stop.title}<small>{memoirStop.day?.replaceAll('-', '.')}</small></b>
             {stop.memories.map((memory) => {
               const post = memoirStop.memories.find((item) => item.post.id === memory.postId)?.post;
-              return <label key={memory.postId} className="memoir-caption">
-                {post?.image ? <img src={post.image} alt=""/> : <span className="memory-placeholder">✎</span>}
-                <textarea value={memory.caption} maxLength={160} aria-label={t('memo.captionLabel')} onChange={(event) => editCaption(stop.stopId, memory.postId, event.target.value)}/>
-              </label>;
+              return <div key={memory.postId} className="memoir-caption">
+                <div className="memoir-thumb">{post?.image ? <img src={post.image} alt=""/> : <span className="memory-placeholder">✎</span>}{statusLabel(memory.postId)}</div>
+                <div className="memoir-fields">
+                  <textarea value={memory.caption} maxLength={160} aria-label={t('memo.captionLabel')} onChange={(event) => editCaption(stop.stopId, memory.postId, event.target.value)}/>
+                  {post?.image && draft.images[memory.postId] && <label className="memoir-motion">{t('memo.motionLabel')}<textarea value={motionFor(memory, post)} maxLength={300} onChange={(event) => editMotion(stop.stopId, memory.postId, event.target.value)}/></label>}
+                </div>
+              </div>;
             })}
           </div>;
         })}

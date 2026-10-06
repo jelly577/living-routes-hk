@@ -75,10 +75,11 @@ const MEMOIR_TOOL = {
               type: 'array',
               items: {
                 type: 'object',
-                required: ['postId', 'caption'],
+                required: ['postId', 'caption', 'motion'],
                 properties: {
                   postId: { type: 'string' },
                   caption: { type: 'string', description: 'First-person memory, 1–2 sentences, readable in ~4 seconds.' },
+                  motion: { type: 'string', description: 'English prompt for an image-to-video model: the natural few-second motion that continues this exact photo.' },
                 },
               },
             },
@@ -99,6 +100,8 @@ function buildContent(language: string, stops: Stop[]) {
       'Ground each caption in what is actually visible in that photo and in the traveller\'s own note. Keep their meaning and feelings; you may make the wording warmer, but do not invent people, names, events, food or facts that are not shown or written.',
       'Do not identify or describe any real person by name or appearance. If a photo is unclear, rely on the note.',
       'Let the captions read as one continuous journey (gentle links between stops are welcome).',
+      'For every memory with a photo also write `motion`: one English sentence (≤ 40 words) for an image-to-video model describing the natural motion that would continue this exact photo for about 5 seconds — what the people, animals, food, water, light or camera do next (e.g. "the person lifts the chopsticks and takes a bite, steam curling from the bowl, slight handheld camera"; "the kitten paws at the person\'s hand and they laugh, gentle push-in").',
+      'Motion must fit what is visible and the traveller\'s note: no new people, animals or objects, no scene change, keep every face and identity exactly as in the photo, no text overlays. Use "the person" rather than guessing who anyone is.',
       'Return the result only by calling write_memoir, using every stopId and postId exactly as given.',
     ].join('\n'),
   }];

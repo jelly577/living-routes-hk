@@ -1,6 +1,6 @@
 // Browser-side media helpers for the memoir video: image loading, AI-sized
 // image copies, a generated ambient soundtrack and MediaRecorder export.
-import { drawMemoirFrame } from './memoirRenderer.js';
+import { allClips, clipAt, drawMemoirFrame } from './memoirRenderer.js';
 
 export function loadImage(src) {
   if (!src) return Promise.resolve(null);
@@ -32,6 +32,41 @@ export function imageToJpegDataUrl(image, maxSide = 768, quality = 0.8) {
 export async function loadMemoirImages(stops) {
   const entries = await Promise.all(stops.flatMap((stop) => stop.memories.map(async ({ post }) => [post.id, await loadImage(post.image)])));
   return Object.fromEntries(entries.filter(([, image]) => image));
+}
+
+// Blob (cached or freshly generated clip) → a muted <video> ready to draw.
+export function createClipElement(blob) {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.src = URL.createObjectURL(blob);
+    const done = (ok) => { video.onloadeddata = null; video.onerror = null; resolve(ok ? video : null); };
+    video.onloadeddata = () => done(true);
+    video.onerror = () => done(false);
+  });
+}
+
+export function releaseClips(clips = {}) {
+  Object.values(clips).forEach((video) => { if (video?.src?.startsWith('blob:')) { video.pause(); URL.revokeObjectURL(video.src); } });
+}
+
+// Keep clip playback in step with the memoir clock.
+// mode 'play': let the current clip run (correcting drift); 'seek': show the exact frame (scrubbing).
+export function syncClips(plan, time, mode = 'play') {
+  const active = clipAt(plan, time);
+  for (const clip of allClips(plan)) {
+    if (!active || clip !== active.clip) { if (!clip.paused) clip.pause(); continue; }
+    const drift = Math.abs(clip.currentTime - active.position);
+    if (mode === 'seek') {
+      if (!clip.paused) clip.pause();
+      if (drift > 0.04) clip.currentTime = active.position;
+    } else {
+      if (drift > 0.35) clip.currentTime = active.position;
+      if (clip.paused && !clip.ended && active.position < clip.duration - 0.1) clip.play().catch(() => {});
+    }
+  }
 }
 
 export function pickVideoFormat() {
@@ -115,6 +150,7 @@ export function recordMemoir(canvas, plan, { withAudio = true, onProgress } = {}
     let startedAt = 0;
     const finish = () => {
       cancelAnimationFrame(frame);
+      allClips(plan).forEach((clip) => clip.pause());
       soundtrack?.stop();
       stream.getTracks().forEach((track) => track.stop());
     };
@@ -126,11 +162,13 @@ export function recordMemoir(canvas, plan, { withAudio = true, onProgress } = {}
     const tick = (now) => {
       if (!startedAt) startedAt = now;
       const time = (now - startedAt) / 1000;
+      syncClips(plan, Math.min(time, plan.duration), 'play');
       drawMemoirFrame(ctx, plan, Math.min(time, plan.duration));
       onProgress?.(Math.min(1, time / plan.duration));
       if (time >= plan.duration + 0.25) { recorder.stop(); return; }
       frame = requestAnimationFrame(tick);
     };
+    allClips(plan).forEach((clip) => { clip.pause(); clip.currentTime = 0; });
     drawMemoirFrame(ctx, plan, 0);
     recorder.start(500);
     frame = requestAnimationFrame(tick);

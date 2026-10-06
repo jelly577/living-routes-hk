@@ -37,6 +37,7 @@ const DUR = {
 };
 const CARD_IN = 0.55;
 const CARD_OUT = 0.45;
+const CLIP_START = 0.3; // clip starts once the card has mostly risen
 const COS_LAT = Math.cos((22.3 * Math.PI) / 180);
 
 // ── maths ─────────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ const bezier = (a, c, b, t) => ({
 });
 
 // ── plan: stops + script → timed segments ─────────────────────────────────
-export function createMemoirPlan({ stops, script, images = {}, labels = {}, size = VIDEO_SIZE }) {
+export function createMemoirPlan({ stops, script, images = {}, clips = {}, labels = {}, size = VIDEO_SIZE }) {
   const { width, height } = size;
   const byStop = new Map((script?.stops || []).map((stop) => [stop.stopId, stop]));
   const planStops = stops.map((stop, index) => {
@@ -93,6 +94,7 @@ export function createMemoirPlan({ stops, script, images = {}, labels = {}, size
         day,
         caption: captions.get(post.id) || post.text || '',
         image: images[post.id] || null,
+        clip: clips[post.id] || null, // HTMLVideoElement of the animated photo
       })),
     };
   });
@@ -110,7 +112,8 @@ export function createMemoirPlan({ stops, script, images = {}, labels = {}, size
     const prev = planStops[index - 1];
     const close = prev && spanKm(prev, stop) < 0.05;
     push({ type: 'travel', stopIndex: index, from: prev ? 'stop' : 'overview' }, index === 0 ? DUR.firstTravel : close ? DUR.hop : DUR.travel);
-    stop.memories.forEach((memory, memoryIndex) => push({ type: 'memory', stopIndex: index, memoryIndex }, DUR.memory));
+    // A motion clip sets the memory's length (plus a moment to read the caption).
+    stop.memories.forEach((memory, memoryIndex) => push({ type: 'memory', stopIndex: index, memoryIndex }, memoryDuration(memory)));
   });
   push({ type: 'outro' }, DUR.outro);
 
@@ -130,6 +133,23 @@ export function createMemoirPlan({ stops, script, images = {}, labels = {}, size
     labels,
   };
 }
+
+function memoryDuration(memory) {
+  const length = memory.clip?.duration;
+  return memory.clip && Number.isFinite(length) && length > 0 ? clamp(length + CLIP_START + 0.4, DUR.memory, 7.5) : DUR.memory;
+}
+
+// Which clip should be showing at `time`, and where inside it (seconds).
+export function clipAt(plan, time) {
+  const seg = segmentAt(plan, time);
+  if (seg.type !== 'memory') return null;
+  const clip = plan.stops[seg.stopIndex].memories[seg.memoryIndex].clip;
+  if (!clip) return null;
+  const length = Number.isFinite(clip.duration) ? clip.duration : Infinity;
+  return { clip, position: clamp(time - seg.start - CLIP_START, 0, Math.max(0, length - 0.05)) };
+}
+
+export const allClips = (plan) => plan.stops.flatMap((stop) => stop.memories.map((memory) => memory.clip).filter(Boolean));
 
 export function segmentAt(plan, time) {
   const t = clamp(time, 0, plan.duration - 1e-6);
@@ -423,8 +443,8 @@ function drawStops(ctx, plan, state, project, time) {
 }
 
 function drawCover(ctx, image, x, y, w, h, zoom, panX = 0, panY = 0) {
-  const iw = image.naturalWidth || image.width;
-  const ih = image.naturalHeight || image.height;
+  const iw = image.naturalWidth || image.videoWidth || image.width;
+  const ih = image.naturalHeight || image.videoHeight || image.height;
   const scale = Math.max(w / iw, h / ih) * zoom;
   const dw = iw * scale;
   const dh = ih * scale;
@@ -489,19 +509,21 @@ function drawCard(ctx, plan, state, time) {
   const photoX = x + 22;
   const photoY = y + 22;
   const photoW = w - 44;
-  const photoH = memory.image ? Math.round(photoW * 0.66) : 0;
-  if (memory.image) {
+  const visual = memory.clip && memory.clip.readyState >= 2 ? memory.clip : memory.image;
+  const photoH = visual ? Math.round(photoW * 0.66) : 0;
+  if (visual) {
     ctx.save();
     roundRect(ctx, photoX, photoY, photoW, photoH, 22);
     ctx.clip();
     const progress = clamp(seconds / span);
     const direction = (state.seg.memoryIndex + state.seg.stopIndex) % 2 === 0 ? 1 : -1;
-    drawCover(ctx, memory.image, photoX, photoY, photoW, photoH, 1.04 + 0.08 * progress, direction * (progress - 0.5) * 0.6, 0);
+    if (visual === memory.clip) drawCover(ctx, visual, photoX, photoY, photoW, photoH, 1.02, 0, 0); // the clip carries its own motion
+    else drawCover(ctx, visual, photoX, photoY, photoW, photoH, 1.04 + 0.08 * progress, direction * (progress - 0.5) * 0.6, 0);
     ctx.restore();
   }
 
   const textX = photoX + 6;
-  let textY = photoY + photoH + (memory.image ? 52 : 46);
+  let textY = photoY + photoH + (visual ? 52 : 46);
   ctx.fillStyle = C.accent;
   ctx.font = `700 19px ${SANS}`;
   ctx.textAlign = 'left';
@@ -511,11 +533,11 @@ function drawCard(ctx, plan, state, time) {
 
   textY += 52;
   ctx.fillStyle = C.ink;
-  const size = memory.image ? 33 : 40;
+  const size = visual ? 33 : 40;
   ctx.font = `${size}px ${SERIF}`;
   const room = y + h - 66 - textY;
   const maxLines = Math.max(1, Math.floor(room / (size * 1.32)) + 1);
-  const lines = wrapText(ctx, memory.caption, photoW - 12, Math.min(maxLines, memory.image ? 4 : 7));
+  const lines = wrapText(ctx, memory.caption, photoW - 12, Math.min(maxLines, visual ? 4 : 7));
   // Caption fades in word-group by line for a gentle "reading" rhythm.
   lines.forEach((line, i) => {
     ctx.save();
