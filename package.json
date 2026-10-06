@@ -11,7 +11,8 @@
     "test:community": "node --test scripts/shared-community-test.mjs",
     "test:districts": "node --test scripts/district-posts-test.mjs",
     "demo:handover": "node scripts/handover-demo.mjs",
-    "audit:content": "node scripts/content-audit.mjs"
+    "audit:content": "node scripts/content-audit.mjs",
+    "test:memoir": "node --test scripts/memoir-test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

@@ -98,3 +98,10 @@ test('failed database publication cleans up the uploaded photo', async () => {
   assert.equal(f.rows.length, 0);
   assert.deepEqual(f.removed, ['publisher/test-id.jpg']);
 });
+
+test('exact photo GPS is never published, capture time is kept', async () => {
+  const f = fixture();
+  await f.backend.publishSharedPost({ ...post, id: 'gps-post', takenAt: '2026-10-03T06:22:05.000Z', photoGps: { lat: 22.2801, lng: 114.155 } });
+  assert.equal(f.rows[0].payload.photoGps, undefined);
+  assert.equal(f.rows[0].payload.takenAt, '2026-10-03T06:22:05.000Z');
+});
