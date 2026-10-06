@@ -1,5 +1,6 @@
 import { findKnownPlace, findPostPlace } from '../data/locations.js';
 import { getDistrict, aggregateDistrictPosts } from '../data/districts.js';
+import { readPhotoMetadata, resolveTakenAt } from './photoMetadata.js';
 import { applyPhotoStyle, deleteMemoryPost, listMemoryPosts, readPhotoFile, saveMemoryPost } from './memoryPostStorage.js';
 import { isPointInBounds, simulateNetwork } from './utils.js';
 import { sharedCommunityEnabled, readSharedPosts, publishSharedPost, removeSharedPost } from './sharedCommunityService.js';
@@ -65,6 +66,7 @@ export async function addPost({
   author = 'You · Prototype user',
   locationType = 'place',
   districtId = null,
+  takenAt = null,
 } = {}) {
   if (!text?.trim()) throw new Error('A memory post requires text.');
   const district = locationType === 'none' ? null : getDistrict(districtId);
@@ -75,6 +77,8 @@ export async function addPost({
   // object picked on the map (see makeUserPlace), or free text.
   const pickedPlace = location && typeof location === 'object' ? location : null;
   const place = pickedPlace || findKnownPlace(location);
+  // Read capture time / GPS before the canvas re-render strips EXIF.
+  const metadata = photo && typeof photo !== 'string' ? await readPhotoMetadata(photo) : { takenAt: null, gps: null };
   const image = typeof photo === 'string' ? await applyPhotoStyle(photo, photoStyle) : await readPhotoFile(photo, photoStyle);
   const normalizedVisibility = visibility === 'community' ? 'community' : 'private';
   let post = {
@@ -104,7 +108,13 @@ export async function addPost({
     consentForAi: Boolean(consent),
     status: normalizedVisibility === 'community' ? 'public-unverified' : 'private',
     createdAt: new Date().toISOString(),
+    // When the moment happened (memoir order + date labels): the user's own
+    // date wins, then the photo's EXIF time, then the publishing time.
+    ...resolveTakenAt(takenAt, metadata.takenAt),
+    // Device-only: removed from every public payload in sharedCommunityService.
+    photoGps: image && metadata.gps ? metadata.gps : null,
   };
+  post.takenAt = post.takenAt || post.createdAt;
   if (normalizedVisibility === 'community' && sharedCommunityEnabled) post = await publishSharedPost(post);
   try { await saveMemoryPost(post); }
   catch (error) {

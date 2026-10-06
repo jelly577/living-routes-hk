@@ -71,3 +71,22 @@ Official references:
 - https://supabase.com/docs/guides/auth/auth-anonymous
 - https://supabase.com/docs/guides/database/postgres/row-level-security
 - https://supabase.com/docs/guides/storage/security/access-control
+
+## Memoir video AI captions (optional)
+
+The Journal's travel-memoir video works without this: captions then come from
+the user's own words. To let AI write captions from the photos:
+
+1. Install the Supabase CLI and link the project (`supabase link`).
+2. Store the model key as a function secret — never in `VITE_*` variables,
+   which are public in the GitHub Pages build:
+   `supabase secrets set ANTHROPIC_API_KEY=...`
+   Optional: `supabase secrets set MEMOIR_MODEL=<model id>` (default `claude-sonnet-5-5`).
+3. Deploy: `supabase functions deploy memoir` (source: `functions/memoir/index.ts`).
+   Keep JWT verification on; the app signs in anonymously before calling it.
+
+What is sent, only after the user ticks the AI consent box in the memoir
+panel: the selected memories' notes, their dates, place *names*, and photos
+downscaled to 768 px. Exact photo GPS never leaves the device (it is also
+stripped from every public Community post). If the function is missing or
+fails, the app falls back to the user's own words and says so.

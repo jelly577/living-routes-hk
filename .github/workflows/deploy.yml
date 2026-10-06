@@ -39,6 +39,7 @@ jobs:
           npm run test:services
           npm run test:community
           npm run test:districts
+          npm run test:memoir
 
       - name: Build
         run: npm run build

@@ -328,3 +328,48 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
   .compose-overlay { place-items: center; padding: 20px; }
   .compose-overlay .memory-compose { height: min(760px, 100%); border-radius: 24px; }
 }
+
+/* Journal form: location picker + date (same look as the composer sheet) */
+.memory-form label { display: block; font-size: 10px; font-weight: 700; margin: 10px 0; color: #40534b; }
+.memory-form select, .memory-form input[type='date'], .memory-form textarea { width: 100%; margin-top: 5px; border: 1px solid #d8d1c5; background: white; padding: 12px; border-radius: 11px; outline-color: #c4502f; font: inherit; font-size: 13px; }
+.memory-form textarea { min-height: 72px; resize: vertical; margin: 0 0 10px; }
+.memory-form .location-note { font-size: 10px; margin: 4px 0 10px; }
+
+/* Travel memoir video */
+.memoir-studio { margin: 22px 18px 28px; padding: 20px 16px; background: #fffdf8; border: 1px solid #ded5c7; border-radius: 22px; box-shadow: 0 8px 26px #173e3114; }
+.memoir-studio > header h2 { margin: 7px 0 6px; color: #173e31; font-size: 27px; line-height: 1.05; }
+.memoir-studio > header p { margin: 0 0 14px; color: #5f6e67; font-size: 11px; line-height: 1.5; }
+.memoir-controls label, .memoir-script label { display: block; margin: 9px 0; color: #40534b; font-size: 10px; font-weight: 700; }
+.memoir-controls input[type='date'], .memoir-controls select, .memoir-script input { width: 100%; margin-top: 5px; border: 1px solid #d8d1c5; background: white; padding: 11px; border-radius: 11px; outline-color: #c4502f; font: inherit; font-size: 13px; }
+.memoir-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.memoir-dates label { margin: 0; }
+.memoir-count { margin: 4px 0 10px; color: #c4502f; font-size: 10px; font-weight: 700; }
+.memoir-consent { padding: 10px; border-radius: 12px; background: #f5efe5; color: #596861 !important; font-weight: 500 !important; font-size: 10px !important; line-height: 1.45; }
+.memoir-studio .generate-button { margin: 12px 0 0; width: 100%; }
+.memoir-error { margin: 10px 0 0; padding: 10px; border-radius: 10px; background: #f5e3d2; color: #a34d2f; font-size: 11px; }
+.memoir-result { margin-top: 16px; }
+.memoir-notice { margin: 0 0 10px; padding: 9px 11px; border-left: 3px solid #c4502f; background: #f5efe5; color: #5f6e67; font-size: 10px; line-height: 1.45; }
+.memoir-stage { display: flex; justify-content: center; padding: 12px; border-radius: 18px; background: #173e31; }
+.memoir-stage canvas { width: min(100%, 290px); aspect-ratio: 9 / 16; height: auto; border-radius: 12px; background: #cfdcd5; box-shadow: 0 10px 30px #0000004d; }
+.memoir-transport { display: flex; align-items: center; gap: 10px; margin: 10px 0 12px; }
+.memoir-transport button { flex: 0 0 auto; width: 42px; height: 38px; padding: 0; }
+.memoir-transport input { flex: 1; min-width: 0; accent-color: #c4502f; }
+.memoir-transport small { flex: 0 0 auto; color: #5f6e67; font-size: 10px; font-variant-numeric: tabular-nums; }
+.memoir-recording { margin: 12px 0; }
+.memoir-recording div { height: 6px; border-radius: 6px; background: #e4ddd1; overflow: hidden; }
+.memoir-recording i { display: block; height: 100%; background: #c4502f; transition: width .2s linear; }
+.memoir-recording span { display: block; margin-top: 6px; color: #5f6e67; font-size: 10px; }
+.memoir-hint { margin: 7px 2px 0; color: #78847f; font-size: 9px; line-height: 1.45; }
+.memoir-video { margin-top: 14px; display: grid; gap: 8px; justify-items: center; }
+.memoir-video video { width: min(100%, 290px); border-radius: 12px; background: #000; }
+.memoir-video a { display: block; box-sizing: border-box; text-align: center; text-decoration: none; }
+.memoir-video small { color: #78847f; font-size: 9px; line-height: 1.4; text-align: center; }
+.memoir-script { margin-top: 20px; padding-top: 14px; border-top: 1px solid #e2dacd; }
+.memoir-stop { margin-top: 14px; }
+.memoir-stop > b { display: flex; align-items: baseline; gap: 8px; color: #173e31; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 17px; }
+.memoir-stop > b i { color: #c4502f; font-style: normal; font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 700; }
+.memoir-stop > b small { margin-left: auto; color: #78847f; font-family: 'DM Sans', sans-serif; font-size: 9px; }
+.memoir-caption { display: flex !important; gap: 10px; align-items: flex-start; margin: 8px 0 !important; }
+.memoir-caption img, .memoir-caption .memory-placeholder { width: 52px; height: 52px; flex: 0 0 52px; object-fit: cover; border-radius: 10px; }
+.memoir-caption textarea { flex: 1; min-width: 0; min-height: 60px; border: 1px solid #d8d1c5; background: white; padding: 9px; border-radius: 10px; font: inherit; font-size: 12px; font-weight: 400; line-height: 1.4; resize: vertical; outline-color: #c4502f; }
+.memoir-profile { margin-top: 16px !important; background: #173e31 !important; color: white; }

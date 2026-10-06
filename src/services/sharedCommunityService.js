@@ -54,6 +54,8 @@ async function publishSharedPost(post) {
   }
   const payload = { ...post, image, imagePath, shared: true, visibility: 'community', status: 'public-unverified', imageStatus: image ? 'user-provided-unverified' : 'not-provided' };
   delete payload.canDelete;
+  // Exact photo GPS is for the owner's private memoir only; never publish it.
+  delete payload.photoGps;
   const { error } = await client.from('community_posts').insert({
     id: post.id, owner_id: session.user.id, payload,
   });
@@ -72,7 +74,16 @@ async function removeSharedPost(id) {
   const path = data[0].payload.imagePath;
   if (path) await client.storage.from('community-photos').remove([path]);
 }
-return { readSharedPosts, publishSharedPost, removeSharedPost };
+// Memoir captions come from the `memoir` Edge Function, which holds the model
+// API key server-side. Callers handle failures by falling back to templates.
+async function requestMemoirAi(body) {
+  await ownerSession();
+  const { data, error } = await client.functions.invoke('memoir', { body });
+  if (error) throw new Error(`Memoir AI unavailable: ${error.message}`);
+  if (!data || data.error) throw new Error(data?.error || 'Memoir AI returned nothing.');
+  return data;
+}
+return { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi };
 }
 
-export const { readSharedPosts, publishSharedPost, removeSharedPost } = createSharedCommunityBackend(client);
+export const { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi } = createSharedCommunityBackend(client);

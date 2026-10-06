@@ -7,9 +7,11 @@ import { sharedCommunityEnabled } from './services/sharedCommunityService.js';
 import { checkpoints as checkpointList } from './data/checkpoints.js';
 import { findPostPlace, postLocationGroups } from './data/locations.js';
 import { districts, getDistrict } from './data/districts.js';
-import { addPost, analyzeInterestProfile, createNarrator, deletePost, generateJourneyLog, getMyPosts, getPostedPlaces, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
+import { addPost, analyzeInterestProfile, createNarrator, deletePost, getMyPosts, getPostedPlaces, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
 import { applyPhotoStyle } from './services/memoryPostStorage.js';
 import MapView from './MapView.jsx';
+import MemoirStudio from './memoir/MemoirStudio.jsx';
+import { localDay, momentOf } from './services/memoirService.js';
 import { UI_LANGUAGES, defaultNarration, getLanguage, placeName, routeTitle, setLanguage as setUiLanguage, t } from './i18n.js';
 
 const ethicsCommitments = ['consent', 'attribution', 'correction', 'benefit'];
@@ -870,8 +872,6 @@ function VoiceResult({ result, onReset }) {
 
 function JournalScreen({ profile }) {
   const [memories, setMemories] = useState([]);
-  const [generated, setGenerated] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [uploadKey, setUploadKey] = useState(0);
   const [journalPhotoStyle, setJournalPhotoStyle] = useState('original');
 
@@ -891,6 +891,7 @@ function JournalScreen({ profile }) {
         photo: file?.size && form.get('journalPhotoStyle') !== 'none' ? file : undefined,
         text: form.get('text') || t('jr.defaultText'),
         ...postLocationFromForm(form),
+        takenAt: form.get('takenDate') || null,
         visibility: 'private',
         photoStyle: form.get('journalPhotoStyle'),
         author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
@@ -904,33 +905,18 @@ function JournalScreen({ profile }) {
     }
   };
 
-  const generate = async () => {
-    if (memories.length === 0) return;
-    setLoading(true); setGenerated(null);
-    try {
-      const result = await generateJourneyLog({ memories, style: 'reflective', language: 'en' });
-      setGenerated(result);
-    } catch (error) {
-      window.alert(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const removeMemory = async (id) => {
     await deletePost(id);
     setMemories((current) => current.filter((memory) => memory.id !== id));
-    setGenerated(null);
   };
 
   return <section className="screen journal-screen page-enter">
     <div className="private-banner">▣ <b>{t('jr.private')}</b></div>
     <header className="section-header"><span className="eyebrow">{t('jr.eyebrow')}</span><h1>{t('jr.title')}</h1><p>{t('jr.intro')}</p></header>
-    <form className="memory-form" onSubmit={addMemory}><PhotoUpload key={uploadKey} large photoStyle={journalPhotoStyle}/><PhotoStylePicker name="journalPhotoStyle" value={journalPhotoStyle} onChange={setJournalPhotoStyle}/><div className="form-row"><input name="place" placeholder={t('jr.placePh')}/><textarea name="text" placeholder={t('jr.textPh')}/></div><button className="secondary">{t('jr.save')}</button></form>
-    {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}<div><small>{memory.place} · {memory.visibility === 'community' ? t('jr.community') : t('jr.onlyMe')}</small><ExpandableText compact>{memory.text}</ExpandableText><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></article>)}</div>}
+    <form className="memory-form" onSubmit={addMemory}><PhotoUpload key={uploadKey} large photoStyle={journalPhotoStyle}/><PhotoStylePicker name="journalPhotoStyle" value={journalPhotoStyle} onChange={setJournalPhotoStyle}/><PlaceSelect/><label>{t('jr.date')}<input type="date" name="takenDate" max={new Date().toISOString().slice(0, 10)}/></label><p className="location-note">{t('jr.dateNote')}</p><textarea name="text" placeholder={t('jr.textPh')}/><button className="secondary">{t('jr.save')}</button></form>
+    {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}<div><small>{[postPlace(memory), localDay(momentOf(memory)).replaceAll('-', '.'), memory.photoGps ? t('jr.gps') : '', memory.visibility === 'community' ? t('jr.community') : t('jr.onlyMe')].filter(Boolean).join(' · ')}</small><ExpandableText compact>{memory.text}</ExpandableText><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></article>)}</div>}
     {memories.length === 0 && <p role="status">{t('jr.empty')}</p>}
-    <button className="generate-button" onClick={generate} disabled={loading || memories.length === 0}>✦ {loading ? t('jr.weaving') : t('jr.generate')}</button>
-    {generated && <div className="generated-log page-enter"><span className="eyebrow">{t('jr.genEyebrow')}</span><h2>{generated.title}</h2>{generated.chapters.map((chapter) => <div className="chapter" key={chapter.id}><i>{String(chapter.order).padStart(2, '0')}</i><div><small>{chapter.place.toUpperCase()} · {chapter.time}</small><h3>{chapter.title}</h3><p>{chapter.text}</p></div></div>)}<div className="profile-update"><small>{t('jr.learned')}</small><b>{generated.interestSignals.map((signal) => signal.label).join(' · ')}</b><p>{t('jr.nextRec', { x: generated.nextRecommendation.label })}</p><span>{generated.nextRecommendation.reason}</span></div><button className="secondary wide">{t('jr.export')}</button></div>}
+    <MemoirStudio memories={memories}/>
   </section>;
 }
 
