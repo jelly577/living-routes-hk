@@ -10,9 +10,9 @@ const postText = (post, lang) => post.textI18n?.[lang] || post.text;
 const postAuthor = (post, lang) => post.authorI18n?.[lang] || post.author;
 
 // One heritage place's own community: a split then/now photo pinned at the top,
-// and below it a scroll of small chat bubbles that pop in — elders' memories on
-// the left (sepia-yellow, black text), visitor posts on the right (white) —
-// like two people texting across time.
+// and below it two columns of small chat bubbles that pop in — elders' memories
+// under the old photo (sepia-yellow, black text), visitor posts under the new
+// photo (white) — like two people texting across time.
 export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   const { past, now } = getThenNowImages(place?.id);
   const lang = getLanguage();
@@ -43,21 +43,12 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
     setPlayingId(id);
   };
 
-  // Interleave old and new voices so the scroll reads like a back-and-forth.
-  const messages = useMemo(() => {
-    const oldMsgs = [
-      ...stories.map((s) => ({ key: `story:${s.placeId}:${s.track}`, side: 'old', text: localizeStory(s, lang).title, story: s, post: null })),
-      ...archival.map((p) => ({ key: p.id, side: 'old', text: postText(p, lang), story: null, post: p })),
-    ];
-    const newMsgs = modern.map((p) => ({ key: p.id, side: 'new', text: postText(p, lang), story: null, post: p }));
-    const out = [];
-    const max = Math.max(oldMsgs.length, newMsgs.length);
-    for (let i = 0; i < max; i++) {
-      if (oldMsgs[i]) out.push(oldMsgs[i]);
-      if (newMsgs[i]) out.push(newMsgs[i]);
-    }
-    return out;
-  }, [stories, archival, modern, lang]);
+  // Two columns: old voices under the "then" photo, visitor posts under "now".
+  const oldMsgs = useMemo(() => [
+    ...stories.map((s) => ({ key: `story:${s.placeId}:${s.track}`, story: s, post: null, text: localizeStory(s, lang).title })),
+    ...archival.map((p) => ({ key: p.id, story: null, post: p, text: postText(p, lang) })),
+  ], [stories, archival, lang]);
+  const newMsgs = useMemo(() => modern.map((p) => ({ key: p.id, story: null, post: p, text: postText(p, lang) })), [modern, lang]);
 
   // Reveal each bubble as it scrolls into view, for a "messages popping in" feel.
   useEffect(() => {
@@ -73,12 +64,32 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
     }, { root, threshold: 0.15 });
     bubbles.forEach((b) => io.observe(b));
     return () => io.disconnect();
-  }, [messages]);
+  }, [oldMsgs, newMsgs]);
 
   const onMessage = (m) => {
     if (m.story) playStory(m.story);
     else setDetail({ type: 'post', data: m.post });
   };
+
+  const renderBubble = (m, i, side) => (
+    <div
+      key={m.key}
+      className={`pc-msg ${side}`}
+      style={{ '--d': `${(i % 4) * 70}ms` }}
+      role="button"
+      tabIndex={0}
+      onClick={() => onMessage(m)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onMessage(m); }}
+    >
+      {m.story && (
+        <span className={`pc-msg-listen ${playingId === `${m.story.placeId}:${m.story.track}` ? 'on' : ''}`}>
+          {playingId === `${m.story.placeId}:${m.story.track}` ? 'Ⅱ' : '▶'}
+        </span>
+      )}
+      <span className="pc-msg-text">{m.text}</span>
+      {m.post?.author && <span className="pc-msg-by">{postAuthor(m.post, lang)}</span>}
+    </div>
+  );
 
   return createPortal(
     <div className="pc-door" role="dialog" aria-modal="true" aria-label={placeName(place)}>
@@ -100,30 +111,21 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
         </header>
       </div>
 
-      {/* 下方：帖子对话气泡 */}
+      {/* 下方：帖子对话气泡，左右两栏对应当年/今天 */}
       <div className="pc-scroll" ref={scrollRef}>
-        <div className="pc-chat">
-          {messages.length === 0 && <p className="pc-chat-empty">{t('pc.empty')}</p>}
-          {messages.map((m, i) => (
-            <div
-              key={m.key}
-              className={`pc-msg ${m.side}`}
-              style={{ '--d': `${(i % 4) * 70}ms` }}
-              role="button"
-              tabIndex={0}
-              onClick={() => onMessage(m)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onMessage(m); }}
-            >
-              {m.story && (
-                <span className={`pc-msg-listen ${playingId === `${m.story.placeId}:${m.story.track}` ? 'on' : ''}`}>
-                  {playingId === `${m.story.placeId}:${m.story.track}` ? 'Ⅱ' : '▶'}
-                </span>
-              )}
-              <span className="pc-msg-text">{m.text}</span>
-              {m.post?.author && <span className="pc-msg-by">{postAuthor(m.post, lang)}</span>}
-            </div>
-          ))}
-        </div>
+        {oldMsgs.length === 0 && newMsgs.length === 0 ? (
+          <p className="pc-chat-empty">{t('pc.empty')}</p>
+        ) : (
+          <div className="pc-chat">
+            <section className="pc-chat-col then">
+              {oldMsgs.map((m, i) => renderBubble(m, i, 'old'))}
+            </section>
+            <div className="pc-chat-divider" />
+            <section className="pc-chat-col now">
+              {newMsgs.map((m, i) => renderBubble(m, i, 'new'))}
+            </section>
+          </div>
+        )}
       </div>
 
       {detail && (

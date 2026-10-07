@@ -489,22 +489,24 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 /* 滚动内容层（帖子对话气泡） */
 .pc-scroll { position: relative; z-index: 2; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #0e1512; }
 
-/* 新老「对话」气泡流 */
-.pc-chat { display: flex; flex-direction: column; gap: 7px; padding: 6px 14px calc(28px + env(safe-area-inset-bottom, 0px)); }
+/* 新老「对话」气泡流：左右两栏，对应当年/今天两张照片 */
+.pc-chat { display: flex; align-items: flex-start; gap: 8px; padding: 12px 12px calc(28px + env(safe-area-inset-bottom, 0px)); }
 .pc-chat-empty { padding: 30px 16px; color: #e6ede9; font-size: 11px; text-align: center; text-shadow: 0 1px 4px #000; }
+.pc-chat-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.pc-chat-divider { flex: 0 0 1px; align-self: stretch; background: #ffffff18; }
 
-.pc-msg { max-width: 78%; align-self: flex-start; display: flex; align-items: flex-end; gap: 6px; padding: 7px 11px; border-radius: 13px; cursor: pointer; opacity: 0; transform: translateY(10px); transition: opacity .45s ease var(--d), transform .45s ease var(--d); backdrop-filter: blur(3px); }
+.pc-msg { display: flex; align-items: flex-end; gap: 6px; padding: 7px 11px; border-radius: 13px; cursor: pointer; opacity: 0; transform: translateY(10px); transition: opacity .45s ease var(--d), transform .45s ease var(--d); backdrop-filter: blur(3px); }
 .pc-msg.in { opacity: 1; transform: translateY(0); }
 .pc-msg-text { font-size: 11px; line-height: 1.5; }
 .pc-msg-by { display: block; font-size: 8px; opacity: 0.65; }
 
-/* 昔日：黄色透明气泡 + 黑色文字（居左） */
+/* 昔日：黄色透明气泡 + 黑色文字（在旧照片那一栏） */
 .pc-msg.old { background: rgba(240, 205, 120, 0.55); color: #241a08; border-bottom-left-radius: 4px; }
 .pc-msg.old .pc-msg-text { color: #1f1606; }
 .pc-msg.old .pc-msg-by { color: #2b2010; }
 
-/* 今日：白色透明气泡（居右） */
-.pc-msg.now { align-self: flex-end; background: rgba(255, 255, 255, 0.55); color: #14322a; border-bottom-right-radius: 4px; }
+/* 今日：白色透明气泡（在新照片那一栏） */
+.pc-msg.now { background: rgba(255, 255, 255, 0.55); color: #14322a; border-bottom-right-radius: 4px; }
 .pc-msg.now .pc-msg-text { color: #0f241d; }
 .pc-msg.now .pc-msg-by { color: #29423a; }
 
