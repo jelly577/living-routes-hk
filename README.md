@@ -19,10 +19,13 @@
 
 ```bash
 npm install
+cp .env.example .env.local   # 首次需要：填入 Google Maps / Supabase 的公开 key（已在 .env.example 里）
 npm run dev
 ```
 
 终端出现 `Local: http://localhost:5173/` 后，在浏览器打开该地址。按 `Control + C` 可停止服务器。
+
+> `.env.local` 已被 `.gitignore` 忽略；`.env.example` 里的三个值都是公开前端值，可直接复制使用。
 
 也可以在 VS Code 中选择 **Terminal → Run Task → Start Living Routes Demo**。
 
