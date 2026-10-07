@@ -9,15 +9,16 @@ import { getLanguage, placeName, t } from '../i18n.js';
 const postText = (post, lang) => post.textI18n?.[lang] || post.text;
 const postAuthor = (post, lang) => post.authorI18n?.[lang] || post.author;
 
-// One heritage place's own community: a split then/now photo pinned at the top,
-// and below it two columns of small chat bubbles that pop in — elders' memories
-// under the old photo (sepia-yellow, black text), visitor posts under the new
-// photo (white) — like two people texting across time.
+// One heritage place's own community, three layers in a single scroll:
+//   1. a full-screen split then/now photo (pull down hint)
+//   2. a "new ⇄ old" chat — elders' memories on the old side, visitor posts on
+//      the new side, as small translucent bubbles
+//   3. a photo wall of framed posts (stories + visitor photos)
 export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   const { past, now } = getThenNowImages(place?.id);
   const lang = getLanguage();
   const [posts, setPosts] = useState([]);
-  const [detail, setDetail] = useState(null); // { type: 'post', data }
+  const [detail, setDetail] = useState(null); // { type: 'story'|'post', data }
   const [playingId, setPlayingId] = useState(null);
   const scrollRef = useRef(null);
 
@@ -43,7 +44,6 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
     setPlayingId(id);
   };
 
-  // Two columns: old voices under the "then" photo, visitor posts under "now".
   const oldMsgs = useMemo(() => [
     ...stories.map((s) => ({ key: `story:${s.placeId}:${s.track}`, story: s, post: null, text: localizeStory(s, lang).title })),
     ...archival.map((p) => ({ key: p.id, story: null, post: p, text: postText(p, lang) })),
@@ -91,11 +91,48 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
     </div>
   );
 
+  const renderStoryCard = (story) => {
+    const localized = localizeStory(story, lang);
+    const id = `${story.placeId}:${story.track}`;
+    return (
+      <article className="pc-frame story" key={id} onClick={() => setDetail({ type: 'story', data: localized, image: past })}>
+        <div className="pc-frame-img">
+          {past?.url ? <img src={past.url} alt={placeName(place)} loading="lazy" /> : <div className="pc-frame-ph">{placeName(place)}</div>}
+          <span className="pc-era then">{t('era.ARCHIVAL')}</span>
+        </div>
+        <div className="pc-frame-copy">
+          <small>⌖ {placeName(place)}</small>
+          <p>{localized.title}</p>
+          <button type="button" className="pc-listen" onClick={(e) => { e.stopPropagation(); playStory(story); }}>
+            {playingId === id ? 'Ⅱ' : '▶'} {t('wall.listen')}
+          </button>
+        </div>
+      </article>
+    );
+  };
+
+  const renderPostCard = (post, side) => (
+    <article className="pc-frame post" key={post.id} onClick={() => setDetail({ type: 'post', data: post })}>
+      <div className="pc-frame-img">
+        {post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={placeName(place)} loading="lazy" /> : <div className="pc-frame-ph">{placeName(place)}</div>}
+        <span className={`pc-era ${side}`}>{t(`era.${post.era === 'ARCHIVAL' ? 'ARCHIVAL' : 'MODERN'}`)}</span>
+      </div>
+      <div className="pc-frame-copy">
+        <small>⌖ {placeName(place)}</small>
+        <p>{postText(post, lang)}</p>
+        <b>{postAuthor(post, lang)}</b>
+      </div>
+    </article>
+  );
+
+  const oldCards = [...stories, ...archival.map((p) => ({ post: p }))];
+  const nothingAtAll = oldCards.length === 0 && modern.length === 0;
+
   return createPortal(
     <div className="pc-door" role="dialog" aria-modal="true" aria-label={placeName(place)}>
       <button className="pc-close" onClick={onClose} aria-label={t('common.close')}>×</button>
 
-      {/* 单个滚动容器：先是一整屏今昔照片，下拉后露出下面的新老聊天框 */}
+      {/* 单个滚动容器：一整屏今昔照片 → 新老聊天框 → 照片墙 */}
       <div className="pc-scroll" ref={scrollRef}>
         <div className="pc-hero">
           <div className="pc-hero-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
@@ -116,10 +153,10 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
           </div>
         </div>
 
-        {oldMsgs.length === 0 && newMsgs.length === 0 ? (
-          <p className="pc-chat-empty">{t('pc.empty')}</p>
-        ) : (
-          <div className="pc-chat">
+        {/* 第二层：新老聊天框 */}
+        <div className="pc-chat">
+          <header className="pc-section-head">{t('pc.chatHint')}</header>
+          <div className="pc-chat-cols">
             <section className="pc-chat-col then">
               {oldMsgs.map((m, i) => renderBubble(m, i, 'old'))}
             </section>
@@ -128,17 +165,51 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
               {newMsgs.map((m, i) => renderBubble(m, i, 'new'))}
             </section>
           </div>
-        )}
+        </div>
+
+        {/* 第三层：照片墙 */}
+        <div className="pc-wall">
+          <header className="pc-section-head">{t('pc.wallTitle')}</header>
+          {nothingAtAll ? (
+            <p className="pc-wall-empty">{t('pc.empty')}</p>
+          ) : (
+            <div className="pc-wall-cols">
+              <section className="pc-col then">
+                <header className="pc-col-head"><b>{t('wall.then')}</b><small>{t('pc.thenSub')}</small></header>
+                {stories.map(renderStoryCard)}
+                {archival.map((p) => renderPostCard(p, 'then'))}
+                {stories.length === 0 && archival.length === 0 && <p className="pc-col-empty">{t('pc.thenEmpty')}</p>}
+              </section>
+              <div className="pc-divider" />
+              <section className="pc-col now">
+                <header className="pc-col-head"><b>{t('wall.now')}</b><small>{t('pc.nowSub')}</small></header>
+                {modern.map((p) => renderPostCard(p, 'now'))}
+                {modern.length === 0 && <p className="pc-col-empty">{t('pc.nowEmpty')}</p>}
+              </section>
+            </div>
+          )}
+        </div>
       </div>
 
       {detail && (
         <div className="pc-detail" role="dialog" aria-modal="true" onClick={() => setDetail(null)}>
           <div className="pc-detail-card" onClick={(e) => e.stopPropagation()}>
             <button className="pc-detail-close" onClick={() => setDetail(null)} aria-label={t('common.close')}>×</button>
-            {detail.data.image && <img src={detail.data.image} alt="" className={`pc-detail-img photo-style-${detail.data.photoStyle || 'original'}`} />}
-            <p>{postText(detail.data, lang)}</p>
-            <b>{postAuthor(detail.data, lang)}</b>
-            <small className="pc-detail-meta">⌖ {placeName(place)}</small>
+            {detail.type === 'story' ? (
+              <>
+                {detail.image?.url && <img src={detail.image.url} alt="" className="pc-detail-img" />}
+                <h2>{detail.data.title}</h2>
+                <p>{detail.data.text}</p>
+                {detail.data.disclosure && <small className="pc-detail-disclosure">{detail.data.disclosure}</small>}
+              </>
+            ) : (
+              <>
+                {detail.data.image && <img src={detail.data.image} alt="" className={`pc-detail-img photo-style-${detail.data.photoStyle || 'original'}`} />}
+                <p>{postText(detail.data, lang)}</p>
+                <b>{postAuthor(detail.data, lang)}</b>
+                <small className="pc-detail-meta">⌖ {placeName(place)}</small>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -494,9 +494,13 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .pc-pull-arrow { font-size: 14px; line-height: 1; animation: pc-pull-bounce 1.6s ease-in-out infinite; }
 @keyframes pc-pull-bounce { 0%, 100% { transform: translateY(0); opacity: 0.9; } 50% { transform: translateY(5px); opacity: 0.5; } }
 
+/* 区块标题 */
+.pc-section-head { padding: 22px 16px 10px; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 17px; letter-spacing: .04em; color: #f2d8a7; text-align: center; }
+
 /* 新老「对话」气泡流：左右两栏，对应当年/今天两张照片 */
-.pc-chat { display: flex; align-items: flex-start; gap: 8px; padding: 12px 12px calc(28px + env(safe-area-inset-bottom, 0px)); }
+.pc-chat { padding: 0 12px 8px; }
 .pc-chat-empty { padding: 30px 16px; color: #e6ede9; font-size: 11px; text-align: center; text-shadow: 0 1px 4px #000; }
+.pc-chat-cols { display: flex; align-items: flex-start; gap: 8px; }
 .pc-chat-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .pc-chat-divider { flex: 0 0 1px; align-self: stretch; background: #ffffff18; }
 
@@ -517,6 +521,31 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 
 .pc-msg-listen { flex: 0 0 auto; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: rgba(23, 62, 49, 0.85); color: #f2d8a7; font-size: 9px; }
 .pc-msg-listen.on { background: #c4502f; color: white; }
+
+/* 第三层：照片墙（相框卡片，与聊天框并存） */
+.pc-wall { padding: 0 12px calc(28px + env(safe-area-inset-bottom, 0px)); }
+.pc-wall-empty { padding: 30px 16px; color: #718078; font-size: 11px; text-align: center; }
+.pc-wall-cols { display: flex; align-items: flex-start; gap: 12px; }
+.pc-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.pc-col-head { text-align: center; padding: 2px 0 6px; }
+.pc-col-head b { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 17px; color: #f3efe6; }
+.pc-col-head small { display: block; color: #718078; font-size: 9px; margin-top: 2px; }
+.pc-divider { flex: 0 0 1px; background: #ffffff18; margin: 0 6px; }
+.pc-col-empty { color: #718078; font-size: 10px; text-align: center; padding: 14px 4px; }
+
+.pc-frame { background: #fbf7ee; border-radius: 3px; padding: 5px 5px 8px; box-shadow: 0 3px 12px #00000066; cursor: pointer; color: #173e31; transform: rotate(-0.5deg); }
+.pc-frame:nth-child(even) { transform: rotate(0.45deg); }
+.pc-frame-img { position: relative; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 2px; background: #ece5d6; }
+.pc-frame-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pc-col.then .pc-frame-img img { filter: sepia(0.5) contrast(1.05); }
+.pc-frame-ph { display: grid; place-items: center; height: 100%; color: #173e31; font-size: 10px; padding: 8px; text-align: center; }
+.pc-era { position: absolute; left: 4px; bottom: 4px; padding: 2px 7px; border-radius: 99px; font-size: 7px; letter-spacing: .06em; background: #173e31; color: #f2d8a7; }
+.pc-era.now { background: #c4502f; color: white; }
+.pc-frame-copy { padding: 7px 4px 0; }
+.pc-frame-copy small { display: block; color: #8a8478; font-size: 8px; margin-bottom: 3px; }
+.pc-frame-copy p { margin: 0; font-size: 10px; line-height: 1.45; color: #2b2b2b; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pc-frame-copy b { display: block; margin-top: 5px; font-size: 9px; color: #6b6b6b; }
+.pc-listen { margin-top: 6px; border: 0; background: #173e31; color: #f2d8a7; font-size: 9px; font-weight: 600; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
 
 /* 帖子详情 */
 .pc-detail { position: absolute; inset: 0; z-index: 1400; background: #000000c0; display: grid; place-items: center; padding: 20px; }
