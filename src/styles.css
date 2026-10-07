@@ -485,9 +485,9 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .pc-tt-zh { font-family: 'DM Serif Display', serif; font-size: 19px; font-weight: 400; color: #f2d8a7; text-shadow: 0 1px 2px #00000099; }
 .pc-tt-en { font-size: 7px; letter-spacing: .3em; color: #e48555; text-transform: uppercase; }
 
-.pc-head { position: absolute; left: 0; right: 0; bottom: 74px; z-index: 4; padding: 0 20px; }
+.pc-head { position: absolute; left: 0; right: 0; top: 90px; z-index: 4; padding: 0 20px; text-align: center; }
 .pc-head .eyebrow { color: #e48555; letter-spacing: .14em; font-size: 9px; text-shadow: 0 1px 4px #000; }
-.pc-head h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 30px; margin: 3px 0 0; color: white; text-shadow: 0 1px 10px #000c; }
+.pc-head h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 26px; margin: 3px 0 0; color: white; text-shadow: 0 1px 10px #000c; }
 
 /* 「下拉 · 新老聊天框」提示 */
 .pc-pull { position: absolute; left: 0; right: 0; bottom: 20px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #f3efe6; font-size: 10px; letter-spacing: .06em; text-shadow: 0 1px 6px #000; pointer-events: none; }
@@ -497,14 +497,16 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 /* 区块标题 */
 .pc-section-head { padding: 22px 16px 10px; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 17px; letter-spacing: .04em; color: #f2d8a7; text-align: center; }
 
-/* 新老「对话」气泡流：左右两栏，对应当年/今天两张照片 */
-.pc-chat { padding: 0 12px 8px; }
+/* 新老「对话」气泡流：浮在第一屏照片上，左右两栏对应当年/今天两张照片 */
+.pc-chat { position: absolute; left: 12px; right: 12px; top: 176px; bottom: 66px; z-index: 4; pointer-events: none; }
 .pc-chat-empty { padding: 30px 16px; color: #e6ede9; font-size: 11px; text-align: center; text-shadow: 0 1px 4px #000; }
-.pc-chat-cols { display: flex; align-items: flex-start; gap: 8px; }
-.pc-chat-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-.pc-chat-divider { flex: 0 0 1px; align-self: stretch; background: #ffffff18; }
+.pc-chat-cols { display: flex; align-items: stretch; gap: 8px; height: 100%; }
+.pc-chat-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; overflow: hidden; }
+.pc-chat-col.then { align-items: flex-start; }
+.pc-chat-col.now { align-items: flex-end; }
+.pc-chat-divider { flex: 0 0 1px; background: #ffffff22; }
 
-.pc-msg { display: flex; align-items: flex-end; gap: 6px; padding: 7px 11px; border-radius: 13px; cursor: pointer; opacity: 0; transform: translateY(10px); transition: opacity .45s ease var(--d), transform .45s ease var(--d); backdrop-filter: blur(3px); }
+.pc-msg { display: flex; align-items: flex-end; gap: 6px; padding: 7px 11px; border-radius: 13px; cursor: pointer; opacity: 0; transform: translateY(10px); transition: opacity .45s ease var(--d), transform .45s ease var(--d); backdrop-filter: blur(3px); pointer-events: auto; max-width: 100%; }
 .pc-msg.in { opacity: 1; transform: translateY(0); }
 .pc-msg-text { font-size: 11px; line-height: 1.5; }
 .pc-msg-by { display: block; font-size: 8px; opacity: 0.65; }

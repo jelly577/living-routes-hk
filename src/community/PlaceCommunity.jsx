@@ -9,11 +9,12 @@ import { getLanguage, placeName, t } from '../i18n.js';
 const postText = (post, lang) => post.textI18n?.[lang] || post.text;
 const postAuthor = (post, lang) => post.authorI18n?.[lang] || post.author;
 
-// One heritage place's own community, three layers in a single scroll:
-//   1. a full-screen split then/now photo (pull down hint)
-//   2. a "new ⇄ old" chat — elders' memories on the old side, visitor posts on
-//      the new side, as small translucent bubbles
-//   3. a photo wall of framed posts (stories + visitor photos)
+// One heritage place's own community, two layers in a single scroll:
+//   1. a full-screen split then/now photo with a "new ⇄ old" chat floating ON
+//      the image — elders' memories on the old half, visitor posts on the new
+//      half, as small translucent bubbles (pull down hint at the bottom)
+//   2. a photo wall of framed posts (stories + visitor photos), revealed when
+//      you pull down to scroll past the chat
 export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   const { past, now } = getThenNowImages(place?.id);
   const lang = getLanguage();
@@ -132,7 +133,7 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
     <div className="pc-door" role="dialog" aria-modal="true" aria-label={placeName(place)}>
       <button className="pc-close" onClick={onClose} aria-label={t('common.close')}>×</button>
 
-      {/* 单个滚动容器：一整屏今昔照片 → 新老聊天框 → 照片墙 */}
+      {/* 单个滚动容器：一整屏今昔照片（浮着新老聊天框）→ 下拉到照片墙 */}
       <div className="pc-scroll" ref={scrollRef}>
         <div className="pc-hero">
           <div className="pc-hero-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
@@ -147,27 +148,27 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
             <span className="eyebrow">{t('pc.eyebrow')}</span>
             <h1>{placeName(place)}</h1>
           </header>
+
+          {/* 对话框：浮在照片上的新老对话气泡，老在旧照片一侧、新在新照片一侧 */}
+          <div className="pc-chat">
+            <div className="pc-chat-cols">
+              <section className="pc-chat-col then">
+                {oldMsgs.map((m, i) => renderBubble(m, i, 'old'))}
+              </section>
+              <div className="pc-chat-divider" />
+              <section className="pc-chat-col now">
+                {newMsgs.map((m, i) => renderBubble(m, i, 'new'))}
+              </section>
+            </div>
+          </div>
+
           <div className="pc-pull" aria-hidden="true">
             <span className="pc-pull-arrow">▾</span>
             <span>{t('pc.chatHint')}</span>
           </div>
         </div>
 
-        {/* 第二层：新老聊天框 */}
-        <div className="pc-chat">
-          <header className="pc-section-head">{t('pc.chatHint')}</header>
-          <div className="pc-chat-cols">
-            <section className="pc-chat-col then">
-              {oldMsgs.map((m, i) => renderBubble(m, i, 'old'))}
-            </section>
-            <div className="pc-chat-divider" />
-            <section className="pc-chat-col now">
-              {newMsgs.map((m, i) => renderBubble(m, i, 'new'))}
-            </section>
-          </div>
-        </div>
-
-        {/* 第三层：照片墙 */}
+        {/* 下拉之后：照片墙（相框帖子） */}
         <div className="pc-wall">
           <header className="pc-section-head">{t('pc.wallTitle')}</header>
           {nothingAtAll ? (
