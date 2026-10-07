@@ -95,24 +95,27 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
     <div className="pc-door" role="dialog" aria-modal="true" aria-label={placeName(place)}>
       <button className="pc-close" onClick={onClose} aria-label={t('common.close')}>×</button>
 
-      {/* 顶部：今昔对比照片，固定在顶部，随滚动留在上面 */}
-      <div className="pc-hero">
-        <div className="pc-hero-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
-        <div className="pc-hero-img now">{now?.url ? <img src={now.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
-        <div className="pc-hero-line" />
-        <div className="pc-hero-shade" />
-        <button className="pc-time-travel" onClick={() => onOpenTimeMachine?.(place)}>
-          <span className="pc-tt-zh">{t('pc.timeTravel')}</span>
-          <span className="pc-tt-en">{t('pc.timeTravelEn')}</span>
-        </button>
-        <header className="pc-head">
-          <span className="eyebrow">{t('pc.eyebrow')}</span>
-          <h1>{placeName(place)}</h1>
-        </header>
-      </div>
-
-      {/* 下方：帖子对话气泡，左右两栏对应当年/今天 */}
+      {/* 单个滚动容器：先是一整屏今昔照片，下拉后露出下面的新老聊天框 */}
       <div className="pc-scroll" ref={scrollRef}>
+        <div className="pc-hero">
+          <div className="pc-hero-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
+          <div className="pc-hero-img now">{now?.url ? <img src={now.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
+          <div className="pc-hero-line" />
+          <div className="pc-hero-shade" />
+          <button className="pc-time-travel" onClick={() => onOpenTimeMachine?.(place)}>
+            <span className="pc-tt-zh">{t('pc.timeTravel')}</span>
+            <span className="pc-tt-en">{t('pc.timeTravelEn')}</span>
+          </button>
+          <header className="pc-head">
+            <span className="eyebrow">{t('pc.eyebrow')}</span>
+            <h1>{placeName(place)}</h1>
+          </header>
+          <div className="pc-pull" aria-hidden="true">
+            <span className="pc-pull-arrow">▾</span>
+            <span>{t('pc.chatHint')}</span>
+          </div>
+        </div>
+
         {oldMsgs.length === 0 && newMsgs.length === 0 ? (
           <p className="pc-chat-empty">{t('pc.empty')}</p>
         ) : (
