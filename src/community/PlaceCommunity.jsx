@@ -9,10 +9,10 @@ import { getLanguage, placeName, t } from '../i18n.js';
 const postText = (post, lang) => post.textI18n?.[lang] || post.text;
 const postAuthor = (post, lang) => post.authorI18n?.[lang] || post.author;
 
-// One heritage place's own community, as a "new ⇄ old" dialogue: the split
-// past/present photo fills the whole screen, and over it a scroll of small
-// chat bubbles pops in — elders' memories on the left (sepia-yellow, black
-// text), visitor posts on the right (white) — like two people texting.
+// One heritage place's own community: a split then/now photo pinned at the top,
+// and below it a scroll of small chat bubbles that pop in — elders' memories on
+// the left (sepia-yellow, black text), visitor posts on the right (white) —
+// like two people texting across time.
 export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   const { past, now } = getThenNowImages(place?.id);
   const lang = getLanguage();
@@ -82,26 +82,26 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
 
   return createPortal(
     <div className="pc-door" role="dialog" aria-modal="true" aria-label={placeName(place)}>
-      {/* Full-screen then/now background */}
-      <div className="pc-bg" aria-hidden="true">
-        <div className="pc-bg-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-bg-ph">{placeName(place)}</div>}</div>
-        <div className="pc-bg-img now">{now?.url ? <img src={now.url} alt="" /> : <div className="pc-bg-ph">{placeName(place)}</div>}</div>
-        <div className="pc-bg-line" />
-        <div className="pc-bg-shade" />
-      </div>
-
       <button className="pc-close" onClick={onClose} aria-label={t('common.close')}>×</button>
 
-      <div className="pc-scroll" ref={scrollRef}>
+      {/* 顶部：今昔对比照片，固定在顶部，随滚动留在上面 */}
+      <div className="pc-hero">
+        <div className="pc-hero-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
+        <div className="pc-hero-img now">{now?.url ? <img src={now.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
+        <div className="pc-hero-line" />
+        <div className="pc-hero-shade" />
+        <button className="pc-time-travel" onClick={() => onOpenTimeMachine?.(place)}>
+          <span className="pc-tt-zh">{t('pc.timeTravel')}</span>
+          <span className="pc-tt-en">{t('pc.timeTravelEn')}</span>
+        </button>
         <header className="pc-head">
           <span className="eyebrow">{t('pc.eyebrow')}</span>
           <h1>{placeName(place)}</h1>
-          <button className="pc-time-travel" onClick={() => onOpenTimeMachine?.(place)}>
-            <span className="pc-tt-zh">{t('pc.timeTravel')}</span>
-            <span className="pc-tt-en">{t('pc.timeTravelEn')}</span>
-          </button>
         </header>
+      </div>
 
+      {/* 下方：帖子对话气泡 */}
+      <div className="pc-scroll" ref={scrollRef}>
         <div className="pc-chat">
           {messages.length === 0 && <p className="pc-chat-empty">{t('pc.empty')}</p>}
           {messages.map((m, i) => (
