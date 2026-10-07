@@ -489,16 +489,8 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .pc-head .eyebrow { color: #e48555; letter-spacing: .14em; font-size: 9px; text-shadow: 0 1px 4px #000; }
 .pc-head h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 26px; margin: 3px 0 0; color: white; text-shadow: 0 1px 10px #000c; }
 
-/* 「下拉 · 新老聊天框」提示 */
-.pc-pull { position: absolute; left: 0; right: 0; bottom: 20px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #f3efe6; font-size: 10px; letter-spacing: .06em; text-shadow: 0 1px 6px #000; pointer-events: none; }
-.pc-pull-arrow { font-size: 14px; line-height: 1; animation: pc-pull-bounce 1.6s ease-in-out infinite; }
-@keyframes pc-pull-bounce { 0%, 100% { transform: translateY(0); opacity: 0.9; } 50% { transform: translateY(5px); opacity: 0.5; } }
-
-/* 区块标题 */
-.pc-section-head { padding: 22px 16px 10px; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 17px; letter-spacing: .04em; color: #f2d8a7; text-align: center; }
-
 /* 新老「对话」气泡流：浮在第一屏照片上，左右两栏对应当年/今天两张照片 */
-.pc-chat { position: absolute; left: 12px; right: 12px; top: 176px; bottom: 66px; z-index: 4; pointer-events: none; }
+.pc-chat { position: absolute; left: 12px; right: 12px; top: 176px; bottom: 22px; z-index: 4; pointer-events: none; }
 .pc-chat-empty { padding: 30px 16px; color: #e6ede9; font-size: 11px; text-align: center; text-shadow: 0 1px 4px #000; }
 .pc-chat-cols { display: flex; align-items: stretch; gap: 8px; height: 100%; }
 .pc-chat-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; overflow: hidden; }

@@ -12,7 +12,7 @@ const postAuthor = (post, lang) => post.authorI18n?.[lang] || post.author;
 // One heritage place's own community, two layers in a single scroll:
 //   1. a full-screen split then/now photo with a "new ⇄ old" chat floating ON
 //      the image — elders' memories on the old half, visitor posts on the new
-//      half, as small translucent bubbles (pull down hint at the bottom)
+//      half, as small translucent bubbles
 //   2. a photo wall of framed posts (stories + visitor photos), revealed when
 //      you pull down to scroll past the chat
 export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
@@ -162,15 +162,10 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
             </div>
           </div>
 
-          <div className="pc-pull" aria-hidden="true">
-            <span className="pc-pull-arrow">▾</span>
-            <span>{t('pc.chatHint')}</span>
-          </div>
         </div>
 
         {/* 下拉之后：照片墙（相框帖子） */}
         <div className="pc-wall">
-          <header className="pc-section-head">{t('pc.wallTitle')}</header>
           {nothingAtAll ? (
             <p className="pc-wall-empty">{t('pc.empty')}</p>
           ) : (
