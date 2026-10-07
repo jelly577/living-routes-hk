@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { identityOptions, interestOptions } from './data/options.js';
-import { getPlaceById } from './data/places.js';
-import { shareSavedPost, shareAllSavedCommunityPosts } from './services/communityService.js';
+import { getPlaceById, places } from './data/places.js';
+import { shareAllSavedCommunityPosts } from './services/communityService.js';
 import { sharedCommunityEnabled } from './services/sharedCommunityService.js';
 import { checkpoints as checkpointList } from './data/checkpoints.js';
 import { findPostPlace, postLocationGroups } from './data/locations.js';
@@ -11,6 +11,10 @@ import { addPost, analyzeInterestProfile, createNarrator, deletePost, getMyPosts
 import { applyPhotoStyle } from './services/memoryPostStorage.js';
 import MapView from './MapView.jsx';
 import MemoirStudio from './memoir/MemoirStudio.jsx';
+import CommunityPhotoWall from './community/CommunityPhotoWall.jsx';
+import PlaceCommunity from './community/PlaceCommunity.jsx';
+import TimeMachine from './community/TimeMachine.jsx';
+import { isHeritagePlace } from './services/thenNowService.js';
 import { localDay, momentOf } from './services/memoirService.js';
 import { UI_LANGUAGES, defaultNarration, getLanguage, placeName, routeTitle, setLanguage as setUiLanguage, t } from './i18n.js';
 
@@ -481,6 +485,8 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
   const [segment, setSegment] = useState(null);
   const [demoing, setDemoing] = useState(false);
   const [postedPlaces, setPostedPlaces] = useState([]);
+  const [placeCommunity, setPlaceCommunity] = useState(null);
+  const [timeTravel, setTimeTravel] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -494,6 +500,13 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
   const handlePostAdded = (created) => {
     getPostedPlaces().then(setPostedPlaces);
     onPostAdded?.(created);
+  };
+
+  // Heritage stops open the immersive then-and-now door; every other pin
+  // (check-in point, district, tapped spot) keeps the post sheet.
+  const handleSelectPlace = (place) => {
+    if (place?.id && isHeritagePlace(place.id)) { setPlaceCommunity(place); setTimeTravel(false); }
+    else setPostsPlace(place);
   };
 
   const submit = async (event) => {
@@ -519,7 +532,7 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
   useEffect(() => { if (demoing) setPlayerOpen(false); }, [demoing]);
 
   return <section className={`screen map-screen page-enter ${chromeCollapsed ? 'chrome-collapsed' : ''}`}>
-    <div className="map-canvas"><MapView route={route} checkpoints={mapCheckpoints} mode={mode} onArrive={handleArrive} onSelectPlace={setPostsPlace} onSegmentChange={setSegment} onNearbyPlace={setNearbyPlace} onDemoingChange={setDemoing} /></div>
+    <div className="map-canvas"><MapView route={route} checkpoints={mapCheckpoints} mode={mode} onArrive={handleArrive} onSelectPlace={handleSelectPlace} onSegmentChange={setSegment} onNearbyPlace={setNearbyPlace} onDemoingChange={setDemoing} /></div>
     <div className="mode-switch">
       <button className={mode === 'bus' ? 'active' : ''} onClick={() => setMode('bus')}>{t('map.busTour')}</button>
       <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>{t('map.walk')}</button>
@@ -550,6 +563,8 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
     {playerOpen && <PlayerSheet profile={profile} placeId={currentPlaceId} remainingTimeSec={timeToNextSec} onClose={() => setPlayerOpen(false)} />}
     {segment && mode === 'bus' && demoing && <DemoNarration segment={segment} profile={profile} />}
     {postsPlace && <PlacePostsSheet key={postsPlace.id} place={postsPlace} profile={profile} onClose={() => setPostsPlace(null)} onPostAdded={handlePostAdded} />}
+    {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
+    {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
   </section>;
 }
 
@@ -726,7 +741,9 @@ function ComposeOverlay({ children, onClose, busy, title }) {
 }
 
 function CommunityScreen({ profile, onPostAdded }) {
-  const [filter, setFilter] = useState('all');
+  const [placeCommunity, setPlaceCommunity] = useState(null);
+  const [timeTravel, setTimeTravel] = useState(false);
+  const [search, setSearch] = useState('');
   const [posts, setPosts] = useState([]);
   const [composer, setComposer] = useState(false);
   const [composerVisibility, setComposerVisibility] = useState('private');
@@ -743,11 +760,11 @@ function CommunityScreen({ profile, onPostAdded }) {
 
   useEffect(() => {
     let cancelled = false;
-    getPosts({ filter }).then((result) => {
+    getPosts().then((result) => {
       if (!cancelled) { setPosts(result); setLoadError(''); }
     }).catch((error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
-  }, [filter, refreshVersion]);
+  }, [refreshVersion]);
 
   const submitPost = async (event) => {
     event.preventDefault();
@@ -779,17 +796,6 @@ function CommunityScreen({ profile, onPostAdded }) {
     } finally { setSavingPost(false); }
   };
 
-  const syncPost = async (id) => {
-    setSyncingPost(id);
-    try {
-      const shared = await shareSavedPost(id);
-      setPosts((current) => current.map((post) => post.id === id ? shared : post));
-      setSavedNotice(t(shared.localSaveFailed ? 'comm.cloudOnly' : 'comm.postedPending'));
-      onPostAdded?.();
-    } catch (error) { setSavedNotice(error.message); }
-    finally { setSyncingPost(null); }
-  };
-
   const syncAllPosts = async () => {
     setSyncingPost('all');
     try {
@@ -818,11 +824,9 @@ function CommunityScreen({ profile, onPostAdded }) {
     setVoiceLoading(false);
   };
 
-  const removePost = async (id) => {
-    await deletePost(id);
-    setPosts((current) => current.filter((post) => post.id !== id));
-    setSavedNotice(t('comm.deleted'));
-  };
+  const matches = search.trim()
+    ? places.filter((p) => `${placeName(p)} ${p.nameEn}`.toLowerCase().includes(search.trim().toLowerCase()))
+    : [];
 
   return <section className="screen community-screen page-enter">
     <p role="status">{t(sharedCommunityEnabled ? 'comm.sharedReady' : 'comm.localOnly')}</p>
@@ -831,8 +835,18 @@ function CommunityScreen({ profile, onPostAdded }) {
     {sharedCommunityEnabled && <button className="secondary" disabled={syncingPost !== null} onClick={syncAllPosts}>{t('comm.syncAll')}</button>}
     {!loadError && posts.length === 0 && <p>{t('comm.empty')}</p>}
     <header className="section-header"><span className="eyebrow">{t('comm.eyebrow')}</span><h1>{t('comm.title')}</h1><p>{t('comm.intro')}</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}<button className="voice-demo-trigger" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button></header>
-    <div className="segmented"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>{t('comm.all')}</button><button className={filter === 'tourist' ? 'active' : ''} onClick={() => setFilter('tourist')}>{t('comm.tourist')}</button><button className={filter === 'local' ? 'active' : ''} onClick={() => setFilter('local')}>{t('comm.local')}</button></div>
-    <div className="post-grid">{posts.map((post) => <article className="post-card" key={post.id}><div className={`post-image ${post.image ? '' : 'placeholder'}`}>{post.image ? <img className={`photo-style-${post.photoStyle || 'original'}`} src={post.image} alt={postPlace(post)}/> : <div className="post-image-placeholder"><b>{postPlace(post)}</b><small>{t('comm.photoMissing')}</small></div>}<span>{post.era ? t(`era.${post.era}`) : ''}</span></div><div className="post-copy"><small>⌖ {postPlace(post)}</small><ExpandableText>{postText(post)}</ExpandableText><b>{postAuthor(post)}</b>{post.createdAt && <small>{t(post.shared ? 'comm.unreviewed' : 'comm.localOnly')}</small>}{post.createdAt && (!post.shared || post.canDelete) && <DeletePostButton onDelete={() => removePost(post.id)}/>} {sharedCommunityEnabled && post.createdAt && !post.shared && <button type="button" className="secondary" disabled={syncingPost !== null} onClick={() => syncPost(post.id)}>{t('comm.sync')}</button>}</div></article>)}</div>
+    <div className="community-search">
+      <span>⌕</span>
+      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('comm.searchPh')} />
+      {search.trim() && matches.length > 0 && (
+        <div className="community-search-results">
+          {matches.map((p) => <button key={p.id} onClick={() => { setPlaceCommunity(p); setTimeTravel(false); setSearch(''); }}>{placeName(p)} <span>→</span></button>)}
+        </div>
+      )}
+    </div>
+    <CommunityPhotoWall posts={posts} onOpenPlace={(place) => { setPlaceCommunity(place); setTimeTravel(false); }} />
+    {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
+    {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
     <button className="fab" onClick={() => { setComposerError(''); setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposer(true); }}>＋</button>
     {composer && <ComposeOverlay title={t('comp.title')} busy={savingPost} onClose={() => setComposer(false)}>
       <form className="compose-card memory-compose" onSubmit={submitPost} aria-busy={savingPost}>

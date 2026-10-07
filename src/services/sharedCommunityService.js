@@ -83,6 +83,15 @@ async function requestMemoirAi(body) {
   if (!data || data.error) throw new Error(data?.error || 'Memoir AI returned nothing.');
   return data;
 }
+// Time-travel narration from the `narrate` Edge Function, which holds the model
+// key server-side. Callers handle failures by falling back to templates.
+async function requestNarrateAi(body) {
+  await ownerSession();
+  const { data, error } = await client.functions.invoke('narrate', { body });
+  if (error) throw new Error(`Time Travel AI unavailable: ${error.message}`);
+  if (!data || data.error) throw new Error(data?.error || 'Time Travel AI returned nothing.');
+  return data;
+}
 // Photo → motion clip via the `animate` Edge Function (start / status / download).
 async function requestAnimation(action, payload = {}) {
   await ownerSession();
@@ -99,7 +108,7 @@ async function requestAnimation(action, payload = {}) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
-return { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi, requestAnimation };
+return { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi, requestAnimation, requestNarrateAi };
 }
 
-export const { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi, requestAnimation } = createSharedCommunityBackend(client);
+export const { readSharedPosts, publishSharedPost, removeSharedPost, requestMemoirAi, requestAnimation, requestNarrateAi } = createSharedCommunityBackend(client);
