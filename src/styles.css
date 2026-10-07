@@ -468,47 +468,48 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .pc-door { position: fixed; inset: 0; z-index: 1000; width: min(100%, 480px); margin: 0 auto; background: #0e1512; color: #f3efe6; display: flex; flex-direction: column; }
 .pc-close { position: absolute; top: 14px; right: 14px; z-index: 7; width: 38px; height: 38px; border: 0; border-radius: 50%; background: #00000066; color: white; font-size: 22px; line-height: 1; cursor: pointer; backdrop-filter: blur(4px); }
 
-.pc-hero { position: relative; flex: 0 0 300px; display: flex; overflow: hidden; }
-.pc-hero-img { flex: 1; overflow: hidden; }
-.pc-hero-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pc-hero-img.then img { filter: sepia(0.45) saturate(0.9) contrast(1.03); }
-.pc-hero-ph { display: grid; place-items: center; height: 100%; color: #c6d1cb; font-size: 12px; padding: 12px; }
-.pc-hero-line { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; z-index: 3; background: linear-gradient(#ffffff00, #ffffffcc 26%, #ffffffcc 74%, #ffffff00); }
-.pc-hero-shade { position: absolute; inset: 0; z-index: 2; background: linear-gradient(180deg, #00000099, #00000000 42%, #0e1512f2 96%); }
+/* 全屏今昔背景照片（左=昔日，右=今日），随滚动固定不动 */
+.pc-bg { position: absolute; inset: 0; z-index: 0; display: flex; }
+.pc-bg-img { flex: 1; overflow: hidden; }
+.pc-bg-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pc-bg-img.then img { filter: sepia(0.45) saturate(0.9) contrast(1.03); }
+.pc-bg-ph { display: grid; place-items: center; height: 100%; color: #c6d1cb; font-size: 12px; padding: 12px; }
+.pc-bg-line { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; z-index: 1; background: linear-gradient(#ffffff00, #ffffffcc 26%, #ffffffcc 74%, #ffffff00); }
+.pc-bg-shade { position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, #000000aa, #00000022 34%, #00000044 70%, #0e1512f2 98%); }
+
+/* 滚动内容层 */
+.pc-scroll { position: relative; z-index: 2; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+.pc-head { padding: 56px 20px 8px; text-align: center; }
+.pc-head .eyebrow { color: #e48555; letter-spacing: .14em; font-size: 9px; text-shadow: 0 1px 4px #000; }
+.pc-head h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 30px; margin: 3px 0 14px; color: white; text-shadow: 0 1px 10px #000c; }
 
 /* 港风「時光之旅」按钮 */
-.pc-time-travel { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 22px; background: #173e31; border: 2px solid #c9a24b; outline: 1px solid #c9a24b; outline-offset: -6px; border-radius: 5px; box-shadow: 0 0 0 1px #00000044, 0 6px 20px #00000099, 0 0 26px #c9a24b33; cursor: pointer; letter-spacing: .12em; }
+.pc-time-travel { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 22px; background: #173e31; border: 2px solid #c9a24b; outline: 1px solid #c9a24b; outline-offset: -6px; border-radius: 5px; box-shadow: 0 0 0 1px #00000044, 0 6px 20px #00000099, 0 0 26px #c9a24b33; cursor: pointer; letter-spacing: .12em; }
 .pc-tt-zh { font-family: 'DM Serif Display', serif; font-size: 19px; font-weight: 400; color: #f2d8a7; text-shadow: 0 1px 2px #00000099; }
 .pc-tt-en { font-size: 7px; letter-spacing: .3em; color: #e48555; text-transform: uppercase; }
 
-.pc-head { position: absolute; left: 0; right: 0; bottom: 16px; z-index: 4; padding: 0 20px; }
-.pc-head .eyebrow { color: #e48555; letter-spacing: .14em; font-size: 9px; text-shadow: 0 1px 4px #000; }
-.pc-head h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 30px; margin: 3px 0 6px; color: white; text-shadow: 0 1px 10px #000c; }
-.pc-head p { margin: 0; color: #cfd8d3; font-size: 11px; text-shadow: 0 1px 6px #000c; }
+/* 新老「对话」气泡流 */
+.pc-chat { display: flex; flex-direction: column; gap: 7px; padding: 6px 14px calc(28px + env(safe-area-inset-bottom, 0px)); }
+.pc-chat-empty { padding: 30px 16px; color: #e6ede9; font-size: 11px; text-align: center; text-shadow: 0 1px 4px #000; }
 
-.pc-wall { flex: 1; overflow-y: auto; display: flex; padding: 18px 14px calc(24px + env(safe-area-inset-bottom, 0px)); }
-.pc-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-.pc-col-head { text-align: center; padding: 2px 0 6px; }
-.pc-col-head b { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 17px; color: #f3efe6; }
-.pc-col-head small { display: block; color: #718078; font-size: 9px; margin-top: 2px; }
-.pc-divider { flex: 0 0 1px; background: #ffffff18; margin: 0 10px; }
-.pc-col-empty { color: #718078; font-size: 10px; text-align: center; padding: 14px 4px; }
-.pc-wall-empty { padding: 30px 16px; color: #718078; font-size: 11px; text-align: center; }
+.pc-msg { max-width: 78%; align-self: flex-start; display: flex; align-items: flex-end; gap: 6px; padding: 7px 11px; border-radius: 13px; cursor: pointer; opacity: 0; transform: translateY(10px); transition: opacity .45s ease var(--d), transform .45s ease var(--d); backdrop-filter: blur(3px); }
+.pc-msg.in { opacity: 1; transform: translateY(0); }
+.pc-msg-text { font-size: 11px; line-height: 1.5; }
+.pc-msg-by { display: block; font-size: 8px; opacity: 0.65; }
 
-/* 相框卡片 */
-.pc-frame { background: #fbf7ee; border-radius: 3px; padding: 5px 5px 8px; box-shadow: 0 3px 12px #00000066; cursor: pointer; color: #173e31; transform: rotate(-0.5deg); }
-.pc-frame:nth-child(even) { transform: rotate(0.45deg); }
-.pc-frame-img { position: relative; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 2px; background: #ece5d6; }
-.pc-frame-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pc-col.then .pc-frame-img img { filter: sepia(0.5) contrast(1.05); }
-.pc-frame-ph { display: grid; place-items: center; height: 100%; color: #173e31; font-size: 10px; padding: 8px; text-align: center; }
-.pc-era { position: absolute; left: 4px; bottom: 4px; padding: 2px 7px; border-radius: 99px; font-size: 7px; letter-spacing: .06em; background: #173e31; color: #f2d8a7; }
-.pc-era.now { background: #c4502f; color: white; }
-.pc-frame-copy { padding: 7px 4px 0; }
-.pc-frame-copy small { display: block; color: #8a8478; font-size: 8px; margin-bottom: 3px; }
-.pc-frame-copy p { margin: 0; font-size: 10px; line-height: 1.45; color: #2b2b2b; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.pc-frame-copy b { display: block; margin-top: 5px; font-size: 9px; color: #6b6b6b; }
-.pc-listen { margin-top: 6px; border: 0; background: #173e31; color: #f2d8a7; font-size: 9px; font-weight: 600; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+/* 昔日：黄色透明气泡 + 黑色文字（居左） */
+.pc-msg.old { background: rgba(240, 205, 120, 0.55); color: #241a08; border-bottom-left-radius: 4px; }
+.pc-msg.old .pc-msg-text { color: #1f1606; }
+.pc-msg.old .pc-msg-by { color: #2b2010; }
+
+/* 今日：白色透明气泡（居右） */
+.pc-msg.now { align-self: flex-end; background: rgba(255, 255, 255, 0.55); color: #14322a; border-bottom-right-radius: 4px; }
+.pc-msg.now .pc-msg-text { color: #0f241d; }
+.pc-msg.now .pc-msg-by { color: #29423a; }
+
+.pc-msg-listen { flex: 0 0 auto; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: rgba(23, 62, 49, 0.85); color: #f2d8a7; font-size: 9px; }
+.pc-msg-listen.on { background: #c4502f; color: white; }
 
 /* 帖子详情 */
 .pc-detail { position: absolute; inset: 0; z-index: 1400; background: #000000c0; display: grid; place-items: center; padding: 20px; }
