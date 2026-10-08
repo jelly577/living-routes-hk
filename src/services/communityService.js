@@ -135,6 +135,25 @@ export async function shareSavedPost(id) {
   return shared;
 }
 
+// Switch one of the user's own posts between "only me" and Community.
+// Private → Community uploads it (when the shared backend is on); Community →
+// private removes the public copy first and keeps the local one.
+export async function setPostVisibility(id, visibility) {
+  const post = (await listMemoryPosts()).find((item) => item.id === id);
+  if (!post) throw new Error('This post is not saved in this browser.');
+  if (visibility === 'community') {
+    if (post.visibility === 'community' && (post.shared || !sharedCommunityEnabled)) return post;
+    const marked = { ...post, visibility: 'community', status: 'public-unverified' };
+    await saveMemoryPost(marked);
+    return sharedCommunityEnabled ? shareSavedPost(id) : marked;
+  }
+  if (post.shared) await removeSharedPost(id);
+  const { canDelete, ...rest } = post;
+  const privatePost = { ...rest, visibility: 'private', status: 'private', shared: false };
+  await saveMemoryPost(privatePost);
+  return privatePost;
+}
+
 // Only entries explicitly marked public are eligible; never upload private journals.
 export async function shareAllSavedCommunityPosts() {
   const posts = await listMemoryPosts();

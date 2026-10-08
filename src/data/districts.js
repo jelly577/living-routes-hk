@@ -27,6 +27,20 @@ export const districts = rows.map(([slug, nameEn, nameZh, nameZhHK, lat, lng]) =
 }));
 export const getDistrict = (id) => districts.find((district) => district.id === id);
 
+// Closest district anchor to a point — used to file a map-tapped post under a
+// district so it groups with the Community wall. Approximate by design.
+export function nearestDistrict(point) {
+  if (!point || point.lat == null || point.lng == null) return null;
+  const cos = Math.cos((point.lat * Math.PI) / 180);
+  let best = null;
+  let bestD = Infinity;
+  for (const district of districts) {
+    const d = ((district.lng - point.lng) * cos) ** 2 + (district.lat - point.lat) ** 2;
+    if (d < bestD) { bestD = d; best = district; }
+  }
+  return best;
+}
+
 export function aggregateDistrictPosts(posts) {
   const counts = new Map();
   const seen = new Set();

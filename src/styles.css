@@ -589,3 +589,16 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .memory-detail-body small { color: #c4502f; font-size: 9px; }
 .memory-detail-body p { margin: 8px 0 0; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: #173e31; }
 .memoir-notice-detail { display: block; margin-top: 4px; opacity: .7; font-size: .85em; word-break: break-word; }
+
+/* Map-first posting */
+.posting-at { margin: 4px 0 10px; color: #c4502f; font-size: 11px; font-weight: 700; }
+.journal-post-cta { margin: 0 18px 8px; }
+.journal-post-cta .location-note { margin-top: 8px; }
+.memory-visibility { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #e3dccf; }
+.memory-visibility span { flex: 1; min-width: 120px; color: #596861; font-size: 11px; }
+.memory-visibility .secondary { padding: 8px 14px; font-size: 11px; }
+.memory-visibility .form-error { flex-basis: 100%; margin: 0; }
+.map-post-hint { position: absolute; z-index: 30; left: 16px; right: 16px; bottom: 96px; display: grid; gap: 2px; padding: 12px 40px 12px 16px; border: 0; border-radius: 16px; background: #173e31; color: #fffaf2; text-align: left; box-shadow: 0 10px 30px #102b2355; }
+.map-post-hint b { font-size: 13px; }
+.map-post-hint span { font-size: 11px; opacity: .85; }
+.map-post-hint i { position: absolute; top: 10px; right: 14px; font-style: normal; font-size: 18px; opacity: .7; }
