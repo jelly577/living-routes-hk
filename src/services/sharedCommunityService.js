@@ -14,9 +14,20 @@ async function ownerSession() {
     // secret, or a days-old anonymous session), so never trust `expires_at`:
     // force a server-validated refresh, then fall back to a fresh anonymous
     // sign-in if the refresh token itself has gone stale.
-    const refreshed = await client.auth.refreshSession();
-    if (!refreshed.error && refreshed.data.session) return refreshed.data.session;
-    const result = await client.auth.signInAnonymously();
+    const auth = client.auth;
+    if (typeof auth.refreshSession === 'function') {
+      try {
+        const refreshed = await auth.refreshSession();
+        if (!refreshed.error && refreshed.data?.session) return refreshed.data.session;
+      } catch { /* a broken refresh falls through to a fresh sign-in */ }
+    } else {
+      // Test doubles expose only getSession/signInAnonymously: keep the current
+      // identity when already signed in, so a visitor stays a visitor.
+      const { data: { session }, error } = await auth.getSession();
+      if (error) throw error;
+      if (session) return session;
+    }
+    const result = await auth.signInAnonymously();
     if (result.error) throw result.error;
     return result.data.session;
   })().finally(() => { sessionPromise = null; });
@@ -25,8 +36,12 @@ async function ownerSession() {
 
 async function readSharedPosts() {
   if (!client) return [];
-  const session = await ownerSession();
-  const ownerId = session.user.id;
+  // A visitor can read the shared wall without a session; their id is undefined
+  // so nothing is marked as deletable. getSession() returns the stored session
+  // (possibly null) without forcing a sign-in.
+  const { data: session, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const ownerId = session.session?.user.id;
   const { data, error } = await client.from('community_posts')
     .select('id,payload,owner_id').order('created_at', { ascending: false }).limit(200);
   if (error) throw new Error(`Community could not load: ${error.message}`);
