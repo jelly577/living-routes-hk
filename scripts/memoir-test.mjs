@@ -4,6 +4,7 @@ import test from 'node:test';
 import { parseExif, resolveTakenAt } from '../src/services/photoMetadata.js';
 import { animateMemories, clipKey, fallbackMotion } from '../src/services/animationService.js';
 import {
+  matchPlaceName,
   buildAiRequest, buildMemoirStops, generateMemoirScript, memoirDateBounds, mergeAiScript, templateMemoirScript,
 } from '../src/services/memoirService.js';
 
@@ -121,4 +122,17 @@ test('photo animation: cache hits skip the model, jobs are polled, failures stay
   assert.equal(calls.filter((c) => c === 'start').length, 2); // never for the cached photo
   assert.notEqual(clipKey('a', 'one'), clipKey('a', 'two')); // edited motion → new clip
   assert.match(fallbackMotion('和小猫合影'), /和小猫合影/);
+});
+
+test('typed place names and a side-picked district still put the memory on the map', () => {
+  const typed = post('t', '2026-10-08T10:00:00.000Z', { locationType: 'place', placeId: null, place: '西贡' });
+  const sideDistrict = post('s', '2026-10-09T10:00:00.000Z', { locationType: 'place', placeId: null, place: 'my favourite cafe', districtId: 'district-wan-chai' });
+  const unknown = post('u', '2026-10-10T10:00:00.000Z', { locationType: 'place', placeId: null, place: 'somewhere nice' });
+  const { stops } = buildMemoirStops([typed, sideDistrict, unknown]);
+  assert.equal(stops[0].place.id, 'district-sai-kung');
+  assert.equal(stops[1].place.id, 'district-wan-chai');
+  assert.deepEqual(stops[1].memories.map((m) => m.post.id), ['s', 'u']); // unknown joins previous stop
+  assert.equal(matchPlaceName('西贡码头海鲜')?.id, 'district-sai-kung');
+  assert.equal(matchPlaceName('Sai Kung pier')?.id, 'district-sai-kung');
+  assert.equal(matchPlaceName('香港'), null); // too vague: must not snap to 香港科学园
 });
