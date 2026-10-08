@@ -92,7 +92,7 @@ function voiceScore(v) {
 const splitSentences = (text) =>
   text.match(/[^.!?。！？；]+[.!?。！？；]*[”」』"]?\s*/g)?.map((s) => s.trim()).filter(Boolean) || [text];
 
-export function createNarrator({ onStateChange, onProgress } = {}) {
+export function createNarrator({ onStateChange, onProgress, voice = 'neutral' } = {}) {
   let audio = null;
   let token = 0;
   let state = 'idle';
@@ -148,20 +148,22 @@ export function createNarrator({ onStateChange, onProgress } = {}) {
 
   async function speak(text, language, my) {
     if (!hasSpeech()) return false;
-    const voice = await pickVoice(language);
-    if (!voice || my !== token) return false;
+    const picked = await pickVoice(language);
+    if (!picked || my !== token) return false;
     const parts = splitSentences(text);
     const total = text.length || 1;
     let spoken = 0;
     mode = 'speech';
     parts.forEach((part, i) => {
       const u = new SpeechSynthesisUtterance(part);
-      u.voice = voice;
-      u.lang = voice.lang;
+      u.voice = picked;
+      u.lang = picked.lang;
       // A slightly slower, neutral delivery is less synthetic than the browser
-      // default while remaining intelligible on a moving bus.
-      u.rate = 0.92;
-      u.pitch = 0.98;
+      // default while remaining intelligible on a moving bus. The "elder" profile
+      // (the narrator's `voice` option) drops the pitch and slows further — a
+      // stand-in for the future AI clone of the submitting elder's voice.
+      u.rate = voice === 'elder' ? 0.84 : 0.92;
+      u.pitch = voice === 'elder' ? 0.6 : 0.98;
       u.onstart = () => { if (my === token && i === 0) emit('playing'); };
       u.onboundary = (e) => { if (my === token) progress((spoken + e.charIndex) / total); };
       u.onend = () => {
@@ -200,6 +202,20 @@ export function createNarrator({ onStateChange, onProgress } = {}) {
     emit('text-only', { reason: 'no-audio-or-voice' });
   }
 
+  // Read arbitrary text (not a curated story) with the narrator's voice profile.
+  // Used for the "elderly voice" that reads a local post's text wherever the
+  // post is played (community wall, then/now door, time travel).
+  async function playText(text, language = 'en') {
+    stop();
+    const my = ++token;
+    mode = null;
+    emit('loading');
+    if (await speak(text, language, my)) return;
+    if (my !== token) return;
+    mode = 'text';
+    emit('text-only', { reason: 'no-audio-or-voice' });
+  }
+
   function pause() {
     if (state !== 'playing') return;
     if (mode === 'audio' && audio) audio.pause();
@@ -214,5 +230,5 @@ export function createNarrator({ onStateChange, onProgress } = {}) {
     emit('playing');
   }
 
-  return { play, pause, resume, stop, getState: () => ({ state, mode }) };
+  return { play, playText, pause, resume, stop, getState: () => ({ state, mode }) };
 }

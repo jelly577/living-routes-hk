@@ -65,7 +65,10 @@ export async function addPost({
   text,
   location,
   role = 'tourist',
+  era = 'MODERN',
   consent = false,
+  voiceConsent = false,
+  voiceSample = null,
   visibility = 'private',
   photoStyle = 'original',
   author = 'You · Prototype user',
@@ -89,8 +92,8 @@ export async function addPost({
   const normalizedVisibility = visibility === 'community' ? 'community' : 'private';
   let post = {
     id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `post-${Date.now()}`,
-    kind: role,
-    era: 'MODERN',
+    kind: era === 'ARCHIVAL' ? 'local' : role,
+    era,
     placeId: place?.id || null,
     place: district && locationType === 'district' ? district.nameEn : place?.nameEn || (typeof location === 'string' && location.trim()) || 'No location',
     locationType,
@@ -112,6 +115,11 @@ export async function addPost({
     imageTreatmentVersion: image && ['cartoon', 'cyberpunk', 'pencil'].includes(photoStyle) ? 2 : 0,
     visibility: normalizedVisibility,
     consentForAi: Boolean(consent),
+    // Voice collection for "local elder" posts: the recorded sample stays on
+    // this device (future AI voice-clone); playback uses the elder voice profile.
+    voiceConsent: Boolean(voiceConsent),
+    voiceSample: voiceSample || null,
+    voiceProfile: era === 'ARCHIVAL' ? 'elder' : 'neutral',
     status: normalizedVisibility === 'community' ? 'public-unverified' : 'private',
     createdAt: new Date().toISOString(),
     // When the moment happened (memoir order + date labels): the user's own

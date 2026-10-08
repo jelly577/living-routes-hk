@@ -19,7 +19,11 @@ export default function CommunityPhotoWall({ posts, onOpenPlace }) {
   const narrator = useMemo(() => createNarrator({
     onStateChange: (s) => { if (s.state === 'ended' || s.state === 'idle') setPlayingId(null); },
   }), []);
-  useEffect(() => () => narrator.stop(), [narrator]);
+  const elderNarrator = useMemo(() => createNarrator({
+    voice: 'elder',
+    onStateChange: (s) => { if (s.state === 'ended' || s.state === 'idle') setPlayingId(null); },
+  }), []);
+  useEffect(() => () => { narrator.stop(); elderNarrator.stop(); }, [narrator, elderNarrator]);
 
   const postText = (post) => post.textI18n?.[lang] || post.text;
   const postAuthor = (post) => post.authorI18n?.[lang] || post.author;
@@ -47,8 +51,18 @@ export default function CommunityPhotoWall({ posts, onOpenPlace }) {
   const playStory = (card) => {
     const id = `${card.place.id}:${card.story.track}`;
     if (playingId === id) { narrator.stop(); setPlayingId(null); return; }
+    elderNarrator.stop();
     narrator.play(card.story, lang);
     setPlayingId(id);
+  };
+
+  // Elder voice reading an elder's own archival post text (its real voice
+  // sample stays local; playback is synthesised with the "elder" profile).
+  const playPost = (post) => {
+    if (playingId === post.id) { elderNarrator.stop(); setPlayingId(null); return; }
+    narrator.stop();
+    elderNarrator.playText(postText(post), lang);
+    setPlayingId(post.id);
   };
 
   const startSeamDrag = (event) => {
@@ -98,6 +112,11 @@ export default function CommunityPhotoWall({ posts, onOpenPlace }) {
         <p>{postText(post)}</p>
         <b>{postAuthor(post)}</b>
         <button type="button" className="wall-listen" onClick={() => onOpenPlace(comparisonPlaceForPost(post))}>{t('wall.compare')}</button>
+        {post.era === 'ARCHIVAL' && (
+          <button type="button" className="wall-listen" onClick={() => playPost(post)}>
+            {playingId === post.id ? 'Ⅱ' : '▶'} {t('post.elderListen')}
+          </button>
+        )}
       </div>
     </article>
   );

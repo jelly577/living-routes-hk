@@ -28,7 +28,11 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   const narrator = useMemo(() => createNarrator({
     onStateChange: (s) => { if (s.state === 'ended' || s.state === 'idle') setPlayingId(null); },
   }), []);
-  useEffect(() => () => narrator.stop(), [narrator]);
+  const elderNarrator = useMemo(() => createNarrator({
+    voice: 'elder',
+    onStateChange: (s) => { if (s.state === 'ended' || s.state === 'idle') setPlayingId(null); },
+  }), []);
+  useEffect(() => () => { narrator.stop(); elderNarrator.stop(); }, [narrator, elderNarrator]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,8 +49,16 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   const playStory = (story) => {
     const id = `${story.placeId}:${story.track}`;
     if (playingId === id) { narrator.stop(); setPlayingId(null); return; }
+    elderNarrator.stop();
     narrator.play(story, lang);
     setPlayingId(id);
+  };
+
+  const playPost = (post) => {
+    if (playingId === post.id) { elderNarrator.stop(); setPlayingId(null); return; }
+    narrator.stop();
+    elderNarrator.playText(postText(post, lang), lang);
+    setPlayingId(post.id);
   };
 
   const oldMsgs = useMemo(() => [
@@ -72,7 +84,9 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   }, [oldMsgs, newMsgs]);
 
   const onMessage = (m) => {
-    if (m.story) playStory(m.story);
+    // The floating chat bubbles are read-only — no voice here. Opening a story
+    // shows its full text; voice only lives on the framed post cards below.
+    if (m.story) setDetail({ type: 'story', data: localizeStory(m.story, lang), image: past });
     else setDetail({ type: 'post', data: m.post });
   };
 
@@ -86,11 +100,6 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
       onClick={() => onMessage(m)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onMessage(m); }}
     >
-      {m.story && (
-        <span className={`pc-msg-listen ${playingId === `${m.story.placeId}:${m.story.track}` ? 'on' : ''}`}>
-          {playingId === `${m.story.placeId}:${m.story.track}` ? 'Ⅱ' : '▶'}
-        </span>
-      )}
       <span className="pc-msg-text">{m.text}</span>
       {m.post?.author && <span className="pc-msg-by">{postAuthor(m.post, lang)}</span>}
     </div>
@@ -126,6 +135,11 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
         <small>⌖ {placeName(place)}</small>
         <p>{postText(post, lang)}</p>
         <b>{postAuthor(post, lang)}</b>
+        {post.era === 'ARCHIVAL' && (
+          <button type="button" className="pc-listen" onClick={(e) => { e.stopPropagation(); playPost(post); }}>
+            {playingId === post.id ? 'Ⅱ' : '▶'} {t('post.elderListen')}
+          </button>
+        )}
       </div>
     </article>
   );
@@ -209,6 +223,11 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
                 <p>{postText(detail.data, lang)}</p>
                 <b>{postAuthor(detail.data, lang)}</b>
                 <small className="pc-detail-meta">⌖ {placeName(place)}</small>
+                {detail.data.era === 'ARCHIVAL' && (
+                  <button type="button" className="pc-listen" onClick={() => playPost(detail.data)}>
+                    {playingId === detail.data.id ? 'Ⅱ' : '▶'} {t('post.elderListen')}
+                  </button>
+                )}
               </>
             )}
           </div>
