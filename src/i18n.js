@@ -118,6 +118,7 @@ const STRINGS = {
     'posts.submit': 'Post',
     'posts.postHere': '＋ Post here',
     'posts.at': 'Posting at {place}',
+    'posts.dateNote': "When it happened. Leave empty to use the photo's own time, or now.",
 
     'demo.fast': '🚀 Fast · 45 km/h',
     'demo.slow': '🐢 Slow · 10 km/h',
@@ -514,6 +515,7 @@ const STRINGS = {
     'posts.submit': '發佈',
     'posts.postHere': '＋ 在這裏留言',
     'posts.at': '發佈在：{place}',
+    'posts.dateNote': '發生的日期。留空就用照片的拍攝時間，沒有就用現在。',
 
     'demo.fast': '🚀 快車 · 時速 45 公里',
     'demo.slow': '🐢 慢車 · 時速 10 公里',
@@ -909,6 +911,7 @@ const STRINGS = {
     'posts.submit': '发布',
     'posts.postHere': '＋ 在这里留言',
     'posts.at': '发布在：{place}',
+    'posts.dateNote': '发生的日期。留空就用照片的拍摄时间，没有就用现在。',
 
     'demo.fast': '🚀 快车 · 时速 45 公里',
     'demo.slow': '🐢 慢车 · 时速 10 公里',

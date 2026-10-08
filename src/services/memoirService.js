@@ -8,11 +8,11 @@ import { findPostPlace } from '../data/locations.js';
 import { districts, getDistrict } from '../data/districts.js';
 import { places } from '../data/places.js';
 import { checkpoints } from '../data/checkpoints.js';
+import { landmarks } from '../data/landmarks.js';
 import { HK_FRAME } from '../data/hkOutline.js';
 
 export const MEMOIR_LANGUAGES = ['en', 'zh-HK', 'zh-CN'];
 export const MAX_MEMOIR_POSTS = 20;
-const MERGE_RADIUS_KM = 0.35;
 
 export const nameIn = (place, language = 'en') => {
   if (!place) return '';
@@ -93,8 +93,44 @@ export function memoirDateBounds(posts = []) {
   return days.length ? { from: days[0], to: days[days.length - 1] } : { from: '', to: '' };
 }
 
-// Ordered stops. Consecutive memories at (nearly) the same spot become one stop
-// with several memories; memories without a location join the previous stop.
+// Names a stop can carry, in order of preference for a tapped spot: popular
+// mid-sized sights first, then our heritage stops and check-in points (tight
+// radius). A heritage stop or check-in point the user picked explicitly is
+// used as-is. Districts are only the fallback label ("Around Sai Kung").
+const OWN_SPOTS = [...places, ...checkpoints].map((place) => ({ ...place, radiusKm: 0.35 }));
+const OWN_SPOT_IDS = new Set(OWN_SPOTS.map((spot) => spot.id));
+const CLUSTER_KM = 1; // unnamed memories this close on the same day share a stop
+
+function nearestWithin(point, spots) {
+  let best = null;
+  let bestKm = Infinity;
+  for (const spot of spots) {
+    const km = distanceKm(point, spot);
+    if (km <= spot.radiusKm && km < bestKm) { best = spot; bestKm = km; }
+  }
+  return best;
+}
+export const nearestNamedSpot = (point) => nearestWithin(point, landmarks) || nearestWithin(point, OWN_SPOTS);
+
+// Which stop a located memory belongs to. District-only posts stay at their
+// district (their pin is only an approximate anchor, so naming a sight there
+// would claim more than the user said).
+function anchorFor(point) {
+  if (point.precision !== 'district') {
+    const picked = point.precision === 'place' && OWN_SPOT_IDS.has(point.place?.id) ? OWN_SPOTS.find((spot) => spot.id === point.place.id) : null;
+    const spot = picked || nearestNamedSpot(point);
+    if (spot) return { key: spot.id, lat: spot.lat, lng: spot.lng, place: spot, placeIsApproximate: false };
+  }
+  const district = point.precision === 'district' ? point.place : nearestDistrict(point);
+  return { key: null, lat: point.lat, lng: point.lng, place: district, placeIsApproximate: true };
+}
+
+// Stops for the memoir video, one per (day, place):
+//   • ordered by time; each calendar day is its own run of stops
+//   • memories near the same popular sight that day are gathered into one
+//     stop named after it, even if the visits were not back-to-back
+//   • memories without a location join that day's stop visited just before
+//     (or the day's first stop); a day with none stays where the trip was
 export function buildMemoirStops(posts = [], { from = '', to = '', limit = MAX_MEMOIR_POSTS } = {}) {
   const selected = posts
     .filter((post) => post && (post.text || post.image))
@@ -104,40 +140,55 @@ export function buildMemoirStops(posts = [], { from = '', to = '', limit = MAX_M
   const truncated = selected.length > limit;
   const used = selected.slice(0, limit);
 
+  const byDay = new Map();
+  for (const item of used) {
+    if (!byDay.has(item.day)) byDay.set(item.day, []);
+    byDay.get(item.day).push(item);
+  }
+
   const stops = [];
-  const waiting = []; // unlocated memories before the first located one
-  for (const { post, day } of used) {
-    const point = memoryPoint(post);
-    const memory = { post, day };
-    const last = stops[stops.length - 1];
-    if (!point) {
-      if (last) last.memories.push(memory); else waiting.push(memory);
-      continue;
+  let previous = null; // last stop of the previous day, for location-less days
+  for (const [day, items] of byDay) {
+    const dayStops = [];
+    const waiting = []; // location-less memories before the day's first located one
+    let current = null;
+    for (const { post } of items) {
+      const memory = { post, day };
+      const point = memoryPoint(post);
+      if (!point) {
+        if (current) current.memories.push(memory); else waiting.push(memory);
+        continue;
+      }
+      const anchor = anchorFor(point);
+      let stop = anchor.key
+        ? dayStops.find((s) => s.key === anchor.key)
+        : dayStops.find((s) => !s.key && distanceKm(s, anchor) <= CLUSTER_KM);
+      if (!stop) {
+        stop = { key: anchor.key, lat: anchor.lat, lng: anchor.lng, precision: point.precision, place: anchor.place, placeIsApproximate: anchor.placeIsApproximate, memories: [] };
+        dayStops.push(stop);
+      }
+      if (point.precision === 'photo') stop.precision = 'photo';
+      stop.memories.push(memory);
+      current = stop;
     }
-    if (last && distanceKm(last, point) < MERGE_RADIUS_KM) {
-      last.memories.push(memory);
-      if (point.precision === 'photo' && last.precision !== 'photo') Object.assign(last, { precision: 'photo' });
-      continue;
+    if (waiting.length) {
+      if (dayStops.length) dayStops[0].memories.unshift(...waiting);
+      else if (previous) dayStops.push({ ...previous, memories: waiting });
+      else dayStops.push({ key: null, lat: 22.32, lng: 114.17, precision: 'none', place: null, placeIsApproximate: true, memories: waiting });
     }
-    stops.push({
-      id: `stop-${stops.length + 1}`,
-      lat: point.lat,
-      lng: point.lng,
-      precision: point.precision,
-      place: point.place,
-      placeIsApproximate: point.placeIsApproximate,
-      memories: [memory],
-    });
+    // Inside a stop, memories stay in time order; stops follow first visit.
+    for (const stop of dayStops) stop.memories.sort((a, b) => (new Date(momentOf(a.post)) - new Date(momentOf(b.post))));
+    stops.push(...dayStops);
+    previous = dayStops[dayStops.length - 1];
   }
-  if (waiting.length) {
-    if (stops.length) stops[0].memories.unshift(...waiting);
-    else {
-      // Nothing has a location: one stop over the city so the video still works.
-      stops.push({ id: 'stop-1', lat: 22.32, lng: 114.17, precision: 'none', place: null, placeIsApproximate: true, memories: waiting });
-    }
-  }
+
   return {
-    stops: stops.map((stop) => ({ ...stop, day: stop.memories[0].day, lastDay: stop.memories[stop.memories.length - 1].day })),
+    stops: stops.map(({ key, ...stop }, index) => ({
+      ...stop,
+      id: `stop-${index + 1}`,
+      day: stop.memories[0].day,
+      lastDay: stop.memories[stop.memories.length - 1].day,
+    })),
     memoryCount: used.length,
     totalAvailable: selected.length,
     truncated,
