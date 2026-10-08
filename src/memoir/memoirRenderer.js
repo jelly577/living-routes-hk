@@ -7,6 +7,7 @@
 // drawMemoirFrame(ctx, plan, t) can be called for preview, scrubbing or
 // recording alike.
 import { HK_FRAME, HK_LAND, MAINLAND_LAND } from '../data/hkOutline.js';
+import { districts } from '../data/districts.js';
 
 export const VIDEO_SIZE = { width: 720, height: 1280 };
 
@@ -100,9 +101,12 @@ export function createMemoirPlan({ stops, script, images = {}, clips = {}, label
   });
 
   const overviewScale = Math.min(fitScale(planStops, width, height * 0.72, 0.18), fitScale(planStops, width, height, 0.12));
-  const overview = { ...centerOf(planStops), k: overviewScale };
-  const focusK = Math.max(overviewScale, width / (0.075 * COS_LAT)); // ~8 km across
-  const days = [...new Set(planStops.map((s) => s.day).filter(Boolean))].sort();
+  // Stop close-up: ~12 km across, enough to show coastline and district names.
+  // (It used to be max(overview, …), which for one stop or a tight cluster
+  // zoomed into ~2 km of blank land.) The overview always stays wider.
+  const focusK = width / (0.12 * COS_LAT);
+  const overview = { ...centerOf(planStops), k: Math.min(overviewScale, focusK * 0.55) };
+  const days = [...new Set(planStops.flatMap((s) => [s.day, ...s.memories.map((m) => m.day)]).filter(Boolean))].sort();
 
   const segments = [];
   let t = 0;
@@ -276,6 +280,16 @@ export function wrapText(ctx, text, maxWidth, maxLines = 4) {
 }
 
 const shortDay = (day) => (day ? `${day.slice(5, 7)}.${day.slice(8, 10)}` : '');
+// The date a stop shows: while one of its memories is on screen, that memory's
+// own day (a stop can hold memories from several days at the same spot);
+// otherwise the stop's day range.
+function stopDayText(stop, state, index) {
+  if (state.seg.type === 'memory' && state.seg.stopIndex === index) return shortDay(stop.memories[state.seg.memoryIndex]?.day || stop.day);
+  const days = stop.memories.map((m) => m.day).filter(Boolean);
+  const first = days[0] || stop.day;
+  const last = days[days.length - 1] || first;
+  return last && last !== first ? `${shortDay(first)}–${shortDay(last)}` : shortDay(first);
+}
 
 function drawBasemap(ctx, plan, cam, project) {
   const { width, height } = plan;
@@ -326,6 +340,32 @@ function drawBasemap(ctx, plan, cam, project) {
   ctx.strokeStyle = C.coast;
   ctx.lineWidth = 1.4;
   ctx.stroke();
+  drawDistrictLabels(ctx, plan, cam, project);
+}
+
+// Faint district names give the zoomed-in map a sense of place even where the
+// view is all land. Positions are approximate display anchors.
+const DISTRICT_NAME = { en: 'nameEn', 'zh-CN': 'nameZh', 'zh-HK': 'nameZhHK' };
+function drawDistrictLabels(ctx, plan, cam, project) {
+  const field = DISTRICT_NAME[plan.labels?.language] || 'nameEn';
+  const latin = field === 'nameEn';
+  // Fade in only once zoomed in enough for names not to crowd each other.
+  const alpha = clamp((cam.k - 2600) / 2400);
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = latin ? `600 17px ${SANS}` : `600 22px ${SANS}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(23,62,49,0.34)';
+  for (const district of districts) {
+    const p = project(district);
+    if (p.x < -80 || p.x > plan.width + 80 || p.y < -30 || p.y > plan.height + 30) continue;
+    const text = latin ? district[field].toUpperCase() : district[field];
+    // Letter-spaced, like names on a printed map.
+    ctx.fillText(text.split('').join('\u2009'), p.x, p.y);
+  }
+  ctx.restore();
 }
 
 function drawRoute(ctx, plan, state, project) {
@@ -405,7 +445,7 @@ function drawStops(ctx, plan, state, project, time) {
     const done = i <= reached;
     const current = i === reached && state.seg.type !== 'outro';
     const r = current ? 17 : 13;
-    if (done && stop.day) pills.push({ x: p.x, y: p.y - r - 22, text: shortDay(stop.day), current, order: i });
+    if (done && stop.day) pills.push({ x: p.x, y: p.y - r - 22, text: stopDayText(stop, state, i), current, order: i });
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fillStyle = done ? C.ink : 'rgba(248,245,238,0.9)';
@@ -475,13 +515,14 @@ function drawTopTitle(ctx, plan, state) {
   ctx.save();
   ctx.globalAlpha = appear;
   ctx.translate(0, (1 - appear) * 14);
-  const dayNumber = plan.days.indexOf(stop.day) + 1;
+  const shownDay = (state.seg.type === 'memory' && stop.memories[state.seg.memoryIndex]?.day) || stop.day;
+  const dayNumber = plan.days.indexOf(shownDay) + 1;
   ctx.fillStyle = C.accent;
   ctx.font = `700 20px ${SANS}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   const dayLabel = dayNumber > 0 ? (plan.labels.day ? plan.labels.day(dayNumber) : `DAY ${dayNumber}`) : '';
-  ctx.fillText([dayLabel, stop.day ? stop.day.replaceAll('-', '.') : ''].filter(Boolean).join('  ·  '), 48, 82);
+  ctx.fillText([dayLabel, shownDay ? shownDay.replaceAll('-', '.') : ''].filter(Boolean).join('  ·  '), 48, 82);
   ctx.fillStyle = C.ink;
   ctx.font = `46px ${SERIF}`;
   const [line] = wrapText(ctx, stop.title, width - 96, 1);
