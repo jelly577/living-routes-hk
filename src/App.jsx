@@ -17,6 +17,8 @@ import PlaceCommunity from './community/PlaceCommunity.jsx';
 import TimeMachine from './community/TimeMachine.jsx';
 import VoiceSampleRecorder from './community/VoiceSampleRecorder.jsx';
 import { isHeritagePlace } from './services/thenNowService.js';
+import { searchLocalPlaces, searchOnlinePlaces } from './services/placeSearch.js';
+import { isDemoRoute, loadBusData, nameIn as busName, operatorName, routeForMap, routesAtGroup, searchStops } from './services/busService.js';
 import { localDay, momentOf } from './services/memoirService.js';
 import { UI_LANGUAGES, defaultNarration, getLanguage, placeName, routeTitle, setLanguage as setUiLanguage, t } from './i18n.js';
 
@@ -244,14 +246,27 @@ function PlayerSheet({ onClose, profile, placeId, remainingTimeSec }) {
   </div>;
 }
 
-function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
+function PlacePostsSheet({ place, profile, onClose, onPostAdded, initialEra = null }) {
   const [posts, setPosts] = useState([]);
-  const [composing, setComposing] = useState(false);
+  // Arriving from the community wall's "add a story" opens the form straight away.
+  const [composing, setComposing] = useState(Boolean(initialEra));
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
-  const [visibility, setVisibility] = useState('private');
+  const [visibility, setVisibility] = useState(initialEra === 'ARCHIVAL' ? 'community' : 'private');
   const [photoStyle, setPhotoStyle] = useState('original');
   const [error, setError] = useState('');
+  // Every place is a then-and-now comparison: a post is a new story (today) or
+  // an old story (how it used to be), and lands in that column of the wall.
+  const [storyEra, setStoryEra] = useState(initialEra || 'MODERN');
+  const [voiceConsent, setVoiceConsent] = useState(false);
+  const [voiceSample, setVoiceSample] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const isOld = storyEra === 'ARCHIVAL';
+  const chooseEra = (era) => {
+    setStoryEra(era);
+    if (era === 'ARCHIVAL') setVisibility('community'); // old stories are for sharing by default
+    else { setVoiceConsent(false); setVoiceSample(null); setRecording(false); }
+  };
   // Places picked on the map are not in our data files, so the post carries them.
   const isMapPlace = place.kind === 'user-place';
 
@@ -276,7 +291,10 @@ function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
         ...locationOfMapPlace(place),
         takenAt: form.get('takenDate') || null,
         author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
-        role: 'tourist',
+        role: isOld ? 'local' : 'tourist',
+        era: storyEra,
+        voiceConsent: isOld && voiceConsent,
+        voiceSample: isOld ? voiceSample : null,
         consent: form.get('consent') === 'on',
         visibility,
         photoStyle,
@@ -313,8 +331,12 @@ function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
     {composing ? (
       <form className="compose-inline" onSubmit={submitPost}>
         <p className="posting-at">⌖ {t('posts.at', { place: placeName(place) })}</p>
-        <label className="inline-label">{t('posts.label')}
-          <textarea name="memory" required placeholder={t('posts.placeholder')} />
+        <fieldset className="visibility-picker compact era-picker"><legend>{t('posts.eraLegend')}</legend><div>
+          <label><input type="radio" name="storyEra" value="MODERN" checked={!isOld} onChange={() => chooseEra('MODERN')}/><span>{t('posts.eraNew')}<small>{t('posts.eraNewSub')}</small></span></label>
+          <label><input type="radio" name="storyEra" value="ARCHIVAL" checked={isOld} onChange={() => chooseEra('ARCHIVAL')}/><span>{t('posts.eraOld')}<small>{t('posts.eraOldSub')}</small></span></label>
+        </div></fieldset>
+        <label className="inline-label">{isOld ? t('story.text') : t('posts.label')}
+          <textarea name="memory" required placeholder={isOld ? t('story.textPh') : t('posts.placeholder')} />
         </label>
         <PhotoUpload photoStyle={photoStyle} />
         <PhotoStylePicker value={photoStyle} onChange={setPhotoStyle} />
@@ -324,6 +346,11 @@ function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
           <label><input type="radio" name="visibility" value="community" checked={visibility === 'community'} onChange={() => setVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label>
           <label><input type="radio" name="visibility" value="private" checked={visibility === 'private'} onChange={() => setVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label>
         </div></fieldset>
+        {isOld && <>
+          <label className="consent-row"><input type="checkbox" checked={voiceConsent} onChange={(event) => { setVoiceConsent(event.target.checked); if (!event.target.checked) { setRecording(false); setVoiceSample(null); } }} /> {t('story.voiceConsent')}</label>
+          {voiceConsent && !recording && <button type="button" className="secondary" onClick={() => setRecording(true)}>{t('story.recordVoice')}</button>}
+          {voiceConsent && recording && <VoiceSampleRecorder sentence={t('story.sentenceText')} onRecorded={(dataUrl) => setVoiceSample(dataUrl)} />}
+        </>}
         <label className="consent-row"><input type="checkbox" name="consent" /> {t('posts.consentAi')}</label>
         {error && <p className="form-error">{error}</p>}
         <div className="inline-actions">
@@ -475,17 +502,26 @@ function DemoNarration({ segment, profile }) {
   </div>;
 }
 
-function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, onDismissPostHint }) {
-  const [destination, setDestination] = useState('');
+function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, onDismissPostHint, startPost = null }) {
   const [route, setRoute] = useState(null);
   const [playerOpen, setPlayerOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [onlineResults, setOnlineResults] = useState(null); // null = not searched yet
+  const [searching, setSearching] = useState(false);
+  const [focus, setFocus] = useState(null);
+  // Two modes: 'bus' (search a stop → pick a route through it) and 'explore'
+  // (search any place → post there).
+  const [mode, setMode] = useState('bus');
+  const [busData, setBusData] = useState(null);
+  const [busState, setBusState] = useState('idle'); // idle | loading | ready | missing | error
+  const [stopResults, setStopResults] = useState([]);
+  const [pickedStop, setPickedStop] = useState(null);
+  const [busRoute, setBusRoute] = useState(null); // the picked route's label, null = demo route
   const [currentPlaceId, setCurrentPlaceId] = useState(null);
   const [timeToNextSec, setTimeToNextSec] = useState(null);
   const [chromeCollapsed, setChromeCollapsed] = useState(false);
   const [postsPlace, setPostsPlace] = useState(null);
-  const [mode, setMode] = useState('bus');
   const [nearbyPlace, setNearbyPlace] = useState(null);
   const [segment, setSegment] = useState(null);
   const [demoing, setDemoing] = useState(false);
@@ -502,6 +538,14 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, o
 
   // 打卡点 + 用户在地图上任意地点发过帖的位置，作为一层独立于路线的标记
   const mapCheckpoints = useMemo(() => [...checkpointList, ...postedPlaces], [postedPlaces]);
+  const [postEra, setPostEra] = useState(null);
+  useEffect(() => {
+    if (!startPost?.place) return;
+    setMode('explore');
+    setFocus({ place: startPost.place, at: startPost.at });
+    setPostEra(startPost.era || 'MODERN');
+    setPostsPlace(startPost.place);
+  }, [startPost]);
   const handlePostAdded = (created) => {
     getPostedPlaces().then(setPostedPlaces);
     onPostAdded?.(created);
@@ -514,16 +558,60 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, o
     else setPostsPlace(place);
   };
 
-  const submit = async (event) => {
-    event.preventDefault();
-    const requestedDestination = destination.trim() || t('stops.hv');
-    setDestination(requestedDestination);
-    setLoading(true);
-    const nextRoute = await getRoute({ destination: requestedDestination, mode: 'demo' });
-    setRoute(nextRoute);
-    setLoading(false);
-    setSearched(true);
+  // Bus data loads on first use of the bus search.
+  const ensureBusData = () => {
+    if (busData || busState === 'loading') return Promise.resolve(busData);
+    setBusState('loading');
+    return loadBusData()
+      .then((data) => { setBusData(data); setBusState('ready'); return data; })
+      .catch((error) => { setBusState(error.code === 'missing' ? 'missing' : 'error'); return null; });
   };
+
+  const typeQuery = (value) => {
+    setQuery(value);
+    setOnlineResults(null);
+    if (mode === 'bus') {
+      setPickedStop(null);
+      if (busData) setStopResults(searchStops(busData, value));
+      else ensureBusData().then((data) => data && setStopResults(searchStops(data, value)));
+      return;
+    }
+    setSuggestions(searchLocalPlaces(value));
+  };
+  // Explore mode: our own sights while typing; the map service on submit.
+  const submitSearch = async (event) => {
+    event.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    if (mode === 'bus') { typeQuery(q); return; }
+    setSuggestions(searchLocalPlaces(q));
+    setSearching(true);
+    try { setOnlineResults(await searchOnlinePlaces(q, { language: getLanguage() })); }
+    catch { setOnlineResults([]); }
+    finally { setSearching(false); }
+  };
+  const pickResult = (place) => {
+    setFocus({ place, at: Date.now() });
+    setSuggestions([]);
+    setOnlineResults(null);
+    setQuery(placeName(place));
+  };
+  const clearSearch = () => { setQuery(''); setSuggestions([]); setOnlineResults(null); setStopResults([]); setPickedStop(null); };
+  const switchMode = (next) => { if (next !== mode) { setMode(next); clearSearch(); } };
+
+  const pickStop = (group) => { setPickedStop(group); setQuery(busName(group, getLanguage())); };
+  const pickRoute = async (r) => {
+    clearSearch();
+    if (isDemoRoute(r)) { setBusRoute(null); setRoute(await getRoute({ mode: 'demo' })); return; }
+    setBusRoute(`${operatorName(r.op, getLanguage())} ${r.route} · ${t('map.busTo', { dest: busName(r.dest, getLanguage()) })}`);
+    setRoute(routeForMap(busData, r, getLanguage()));
+  };
+  const backToDemoRoute = async () => { setBusRoute(null); setRoute(await getRoute({ mode: 'demo' })); };
+
+  const stopRoutes = pickedStop && busData ? routesAtGroup(busData, pickedStop) : [];
+  const searchOpen = Boolean(query.trim()) && (mode === 'bus'
+    ? true
+    : suggestions.length > 0 || onlineResults !== null || searching);
 
   const handleArrive = (place, nextSec) => {
     if (!place?.id) return;
@@ -537,10 +625,10 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, o
   useEffect(() => { if (demoing) setPlayerOpen(false); }, [demoing]);
 
   return <section className={`screen map-screen page-enter ${chromeCollapsed ? 'chrome-collapsed' : ''}`}>
-    <div className="map-canvas"><MapView route={route} checkpoints={mapCheckpoints} mode={mode} onArrive={handleArrive} onSelectPlace={handleSelectPlace} onSegmentChange={setSegment} onNearbyPlace={setNearbyPlace} onDemoingChange={setDemoing} /></div>
+    <div className="map-canvas"><MapView route={route} checkpoints={mapCheckpoints} mode={mode === 'bus' ? 'bus' : 'walk'} focus={focus} onArrive={handleArrive} onSelectPlace={handleSelectPlace} onSegmentChange={setSegment} onNearbyPlace={setNearbyPlace} onDemoingChange={setDemoing} /></div>
     <div className="mode-switch">
-      <button className={mode === 'bus' ? 'active' : ''} onClick={() => setMode('bus')}>{t('map.busTour')}</button>
-      <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>{t('map.walk')}</button>
+      <button className={mode === 'bus' ? 'active' : ''} onClick={() => switchMode('bus')}>{t('map.modeBus')}</button>
+      <button className={mode === 'explore' ? 'active' : ''} onClick={() => switchMode('explore')}>{t('map.modeExplore')}</button>
     </div>
     {nearbyPlace && (
       <button className="nearby-toast" onClick={() => setPostsPlace(nearbyPlace)}>
@@ -555,20 +643,40 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, o
     ) : (
       <>
         <header className="floating-header"><span className="brand-mark">LR</span><div><b>Living Routes</b><small>{t('brand.small')}</small></div><button className="avatar lang-button" onClick={onChangeLanguage} title={t('common.changeLanguage')} aria-label={t('common.changeLanguage')}>{({ en: 'EN', 'zh-HK': '繁', 'zh-CN': '简' })[getLanguage()]}</button><button className="chrome-close" onClick={() => setChromeCollapsed(true)} title={t('map.hideHeader')} aria-label={t('map.hideHeader')}>⌃</button></header>
-        <form className="route-search" onSubmit={submit}><span>⌕</span><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder={t('map.destPlaceholder')}/><button type="submit">{t('map.routeBtn')}</button></form>
+        <form className="route-search place-search" onSubmit={submitSearch} role="search">
+          <span>⌕</span>
+          <input value={query} onChange={(e) => typeQuery(e.target.value)} placeholder={t(mode === 'bus' ? 'map.busSearchPlaceholder' : 'map.searchPlaceholder')} aria-label={t(mode === 'bus' ? 'map.busSearchPlaceholder' : 'map.searchPlaceholder')} onFocus={() => mode === 'bus' && ensureBusData()}/>
+          {query && <button type="button" className="place-search-clear" onClick={clearSearch} aria-label={t('common.close')}>×</button>}
+          <button type="submit" disabled={searching}>{t('map.searchBtn')}</button>
+        </form>
+        {searchOpen && mode === 'explore' && <div className="place-search-results" role="listbox">
+          {suggestions.map((place) => <button type="button" key={place.id} onClick={() => pickResult(place)}><b>{placeName(place)}</b><small>{t(place.kind === 'district' ? 'map.resultDistrict' : 'map.resultSight')}</small></button>)}
+          {searching && <p>{t('map.searching')}</p>}
+          {onlineResults?.map((place) => <button type="button" key={place.id} onClick={() => pickResult(place)}><b>{placeName(place)}</b><small>{place.address}</small></button>)}
+          {onlineResults && !searching && onlineResults.length === 0 && suggestions.length === 0 && <p>{t('map.noResults')}</p>}
+          {!onlineResults && !searching && <p className="place-search-hint">{t('map.searchMoreHint')}</p>}
+        </div>}
+        {searchOpen && mode === 'bus' && <div className="place-search-results bus-results" role="listbox">
+          {busState === 'loading' && <p>{t('map.busLoading')}</p>}
+          {busState === 'missing' && <p>{t('map.busMissing')}</p>}
+          {busState === 'error' && <p>{t('map.busError')}</p>}
+          {busData && !pickedStop && stopResults.map((g) => <button type="button" key={g.id} onClick={() => pickStop(g)}><b>{busName(g, getLanguage())}</b><small>{t('map.busRouteCount', { n: g.routeCount })}</small></button>)}
+          {busData && !pickedStop && stopResults.length === 0 && <p>{t('map.busNoStops')}</p>}
+          {pickedStop && <>
+            <p className="bus-results-head">{t('map.busRoutesAt', { stop: busName(pickedStop, getLanguage()) })}</p>
+            {stopRoutes.map((r) => <button type="button" key={`${r.op}-${r.route}-${r.bound}`} className="bus-route-option" onClick={() => pickRoute(r)}>
+              <b><span className={`bus-badge op-${r.op}`}>{r.route}</span>{t('map.busTo', { dest: busName(r.dest, getLanguage()) })}{isDemoRoute(r) && <em>{t('map.busNarrated')}</em>}</b>
+              <small>{operatorName(r.op, getLanguage())} · {t('map.busFrom', { orig: busName(r.orig, getLanguage()) })}</small>
+            </button>)}
+          </>}
+        </div>}
       </>
     )}
+    {mode === 'bus' && busRoute && !chromeCollapsed && !searchOpen && <div className="bus-route-chip"><span>{busRoute}</span><button type="button" onClick={backToDemoRoute}>{t('map.busBackToDemo')}</button></div>}
     {postHint && !postsPlace && <button type="button" className="map-post-hint" onClick={onDismissPostHint}><b>{t('map.postHintTitle')}</b><span>{t('map.postHint')}</span><i aria-hidden="true">×</i></button>}
-    {loading && <div className="map-hint"><b>{t('map.preparing')}</b><span>{t('map.plotting')}</span></div>}
-    {searched && route && !playerOpen && <div className="route-card page-enter">
-      <div className="sheet-handle"/><span className="eyebrow">{t('route.eyebrow')}</span><h2>{routeTitle()}</h2>
-      <div className="route-stats"><div><b>{t('route.min', { n: route.estimatedDurationMin })}</b><span>{t('route.journey')}</span></div><div><b>{route.storyPoints.length}</b><span>{t('route.points')}</span></div><div><b>3</b><span>{t('route.languages')}</span></div></div>
-      <p>{t('route.note')}</p>
-      <button className="primary wide" onClick={() => setPlayerOpen(true)}>{t('route.begin')} <span>▶</span></button>
-    </div>}
     {playerOpen && <PlayerSheet profile={profile} placeId={currentPlaceId} remainingTimeSec={timeToNextSec} onClose={() => setPlayerOpen(false)} />}
-    {segment && mode === 'bus' && demoing && <DemoNarration segment={segment} profile={profile} />}
-    {postsPlace && <PlacePostsSheet key={postsPlace.id} place={postsPlace} profile={profile} onClose={() => setPostsPlace(null)} onPostAdded={handlePostAdded} />}
+    {segment && demoing && <DemoNarration segment={segment} profile={profile} />}
+    {postsPlace && <PlacePostsSheet key={postsPlace.id} place={postsPlace} profile={profile} initialEra={postEra} onClose={() => { setPostsPlace(null); setPostEra(null); }} onPostAdded={handlePostAdded} />}
     {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
     {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
   </section>;
@@ -582,7 +690,8 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, o
 function locationOfMapPlace(place) {
   if (place.kind === 'district') return { locationType: 'district', districtId: place.id };
   const district = nearestDistrict(place);
-  return { locationType: 'place', location: place.kind === 'user-place' ? place : place.id, districtId: district?.id || null };
+  const carriesOwnCoords = place.kind === 'user-place' || place.kind === 'landmark';
+  return { locationType: 'place', location: carriesOwnCoords ? place : place.id, districtId: district?.id || null };
 }
 
 // 发帖地点：文化路线 5 站 + 打卡点 + 其他（自由填写）
@@ -787,6 +896,15 @@ function CommunityScreen({ profile, onPostAdded, onGoToMap }) {
     return () => { cancelled = true; };
   }, [refreshVersion]);
 
+  // Posts this browser marked public but could not upload earlier (offline,
+  // backend not set up yet) are published quietly when the page opens.
+  useEffect(() => {
+    if (!sharedCommunityEnabled) return;
+    shareAllSavedCommunityPosts()
+      .then((result) => { if (result.published.length) setRefreshVersion((value) => value + 1); })
+      .catch(() => { /* try again next visit */ });
+  }, []);
+
   const submitPost = async (event) => {
     event.preventDefault();
     setSavedNotice('');
@@ -854,22 +972,10 @@ function CommunityScreen({ profile, onPostAdded, onGoToMap }) {
     : [];
 
   return <section className="screen community-screen page-enter">
-    <p role="status">{t(sharedCommunityEnabled ? 'comm.sharedReady' : 'comm.localOnly')}</p>
-    {loadError && <p role="alert">{loadError}</p>}
-    <button className="secondary" onClick={() => setRefreshVersion((value) => value + 1)}>{t('comm.refresh')}</button>
-    {sharedCommunityEnabled && <button className="secondary" disabled={syncingPost !== null} onClick={syncAllPosts}>{t('comm.syncAll')}</button>}
-    {!loadError && posts.length === 0 && <p>{t('comm.empty')}</p>}
-    <header className="section-header"><span className="eyebrow">{t('comm.eyebrow')}</span><h1>{t('comm.title')}</h1><p>{t('comm.intro')}</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}<button className="voice-demo-trigger" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button></header>
-    <div className="community-search">
-      <span>⌕</span>
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('comm.searchPh')} />
-      {search.trim() && matches.length > 0 && (
-        <div className="community-search-results">
-          {matches.map((p) => <button key={p.id} onClick={() => { setPlaceCommunity(p); setTimeTravel(false); setSearch(''); }}>{placeName(p)} <span>→</span></button>)}
-        </div>
-      )}
-    </div>
-    <CommunityPhotoWall posts={posts} onOpenPlace={(place) => { setPlaceCommunity(place); setTimeTravel(false); }} />
+    <header className="section-header"><span className="eyebrow">{t('comm.eyebrow')}</span><h1>{t('comm.title')}</h1><p>{t('comm.intro')}</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}</header>
+    {loadError && <p className="form-error community-error" role="alert">{loadError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)}>{t('comm.retry')}</button></p>}
+    <CommunityPhotoWall posts={posts} onOpenPlace={(place) => { setPlaceCommunity(place); setTimeTravel(false); }} onAddStory={(place, era) => onGoToMap?.(place, era)} />
+    <button type="button" className="voice-demo-link" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button>
     {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
     {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
     <button className="fab" aria-label={t('jr.postOnMap')} onClick={() => (onGoToMap ? onGoToMap() : (setComposerError(''), setComposerVisibility('private'), setComposerPhotoStyle('original'), setComposerKind('tourist'), setStoryVoiceConsent(false), setStoryRecording(false), setStoryVoiceSample(null), setComposer(true)))}>＋</button>
@@ -996,7 +1102,15 @@ export default function App() {
   const [active, setActive] = useState('map');
   const [myPosts, setMyPosts] = useState([]);
   const [postHint, setPostHint] = useState(false);
-  const goToMapToPost = () => { setPostHint(true); setActive('map'); };
+  const [mapStartPost, setMapStartPost] = useState(null);
+  // From the community wall or journal: open the map, on a place if we have one
+  // (with its new/old choice preset), else with the "tap where it happened" hint.
+  const goToMapToPost = (place = null, era = null) => {
+    const located = place && place.lat != null && place.lng != null;
+    setMapStartPost(located ? { place, era, at: Date.now() } : null);
+    setPostHint(!located);
+    setActive('map');
+  };
 
   const refreshMyPosts = async () => { setMyPosts(await getMyPosts()); };
 
@@ -1015,10 +1129,10 @@ export default function App() {
   const pickLanguage = (code) => { setUiLanguage(code); setUiLanguageState(code); setPickingLanguage(false); };
 
   const content = useMemo(() => ({
-    map: <MapScreen profile={fullProfile} onPostAdded={(created) => { setPostHint(false); refreshMyPosts(created); }} onChangeLanguage={() => setPickingLanguage(true)} postHint={postHint} onDismissPostHint={() => setPostHint(false)} />,
+    map: <MapScreen profile={fullProfile} onPostAdded={(created) => { setPostHint(false); refreshMyPosts(created); }} onChangeLanguage={() => setPickingLanguage(true)} postHint={postHint} onDismissPostHint={() => setPostHint(false)} startPost={mapStartPost} />,
     community: <CommunityScreen profile={fullProfile} onPostAdded={refreshMyPosts} onGoToMap={goToMapToPost} />,
     journal: <JournalScreen profile={fullProfile} onGoToMap={goToMapToPost} />,
-  })[active], [active, fullProfile, uiLanguage, postHint]);
+  })[active], [active, fullProfile, uiLanguage, postHint, mapStartPost]);
 
   // Prototype-only preview, kept out of the normal flow.
   if (typeof window !== 'undefined' && window.location.hash === '#depthclip') return <DepthClipDemo />;
