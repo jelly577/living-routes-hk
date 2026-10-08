@@ -14,6 +14,7 @@ test('legacy Google racecourse post joins the heritage comparison without rewrit
   assert.equal(comparisonPlaceForPost(legacy).id, 'happy-valley-racecourse');
   const feed = await getPosts({ placeId: 'happy-valley-racecourse' });
   assert.ok(feed.some((p) => p.id === legacy.id));
+  assert.ok((await getPosts({ placeId: legacy.placeId })).some((p) => p.id === legacy.id));
   assert.equal(legacy.placeId, 'gp:ChIJcVnvqE8ABDQRmlCv6UgfOvk');
   const place = getPlaceById('happy-valley-racecourse');
   const past = place.gallery.find((i) => i.era === 'past' && !i.contentWarning);
