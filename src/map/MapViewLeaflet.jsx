@@ -40,7 +40,7 @@ function popupHtml(place) {
 }
 
 // 离线/无 key 时的兜底：Leaflet + OSM 底图 + OSRM 路线 + Nominatim 反查
-export default function MapViewLeaflet({ route, checkpoints = [], onSelectPlace }) {
+export default function MapViewLeaflet({ route, checkpoints = [], onSelectPlace, focus }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -96,6 +96,7 @@ export default function MapViewLeaflet({ route, checkpoints = [], onSelectPlace 
   useEffect(() => {
     if (!route?.path?.length) return;
     let cancelled = false;
+    if (route.pathIsStops) { setRoadPath(null); return undefined; } // straight through its stops
     const origin = route.path[0];
     const destination = route.path[route.path.length - 1];
     setRoadPath(null);
@@ -114,6 +115,13 @@ export default function MapViewLeaflet({ route, checkpoints = [], onSelectPlace 
 
     const polyline = L.polyline(roadPath || route.path, { color: '#c4502f', weight: 4, opacity: 0.9 });
     polyline.addTo(layer);
+
+    // Stops of a route picked in the bus search: small dots, tap for the name.
+    route.busStops?.forEach((stop) => {
+      L.circleMarker([stop.lat, stop.lng], { radius: 4.5, color: '#c4502f', weight: 2, fillColor: '#fffaf2', fillOpacity: 1 })
+        .bindPopup(`<div class="lr-popup"><strong>${escapeHtml(placeName(stop))}</strong></div>`)
+        .addTo(layer);
+    });
 
     route.storyPoints?.forEach((place) => {
       if (place.lat == null || place.lng == null) return;
@@ -140,6 +148,19 @@ export default function MapViewLeaflet({ route, checkpoints = [], onSelectPlace 
       marker.addTo(layer);
     });
   }, [checkpoints]);
+
+  // A place picked in the search box: fly there and offer "Post here".
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focus?.place) return;
+    const { place } = focus;
+    const latlng = [place.lat, place.lng];
+    map.flyTo(latlng, Math.max(map.getZoom(), 17), { duration: 0.8 });
+    L.popup()
+      .setLatLng(latlng)
+      .setContent(placePopupElement(place, { onPost: (p) => { map.closePopup(); onSelectPlaceRef.current?.(p); }, eyebrow: t('mapui.searched') }))
+      .openOn(map);
+  }, [focus]);
 
   return (
     <>

@@ -13,6 +13,7 @@
     "demo:handover": "node scripts/handover-demo.mjs",
     "audit:content": "node scripts/content-audit.mjs",
     "test:memoir": "node --test scripts/memoir-test.mjs",
+    "build:bus-data": "node scripts/build-bus-data.mjs",
     "test:then-now": "node --test scripts/then-now-test.mjs"
   },
   "dependencies": {

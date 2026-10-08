@@ -122,7 +122,7 @@ function buildJourney(path, storyPoints, gmaps) {
   return { cum, nearest, stations, segments };
 }
 
-export default function MapViewGoogle({ route, checkpoints = [], onFail, onArrive, onSelectPlace, mode = 'bus', onSegmentChange, onNearbyPlace, onDemoingChange }) {
+export default function MapViewGoogle({ route, checkpoints = [], onFail, onArrive, onSelectPlace, mode = 'bus', focus, onSegmentChange, onNearbyPlace, onDemoingChange }) {
   const containerRef = useRef(null);
   const gmapsRef = useRef(null);
   const mapRef = useRef(null);
@@ -131,6 +131,7 @@ export default function MapViewGoogle({ route, checkpoints = [], onFail, onArriv
   const markersRef = useRef([]); // [{ place, marker }]
   const checkpointMarkersRef = useRef([]); // 打卡点图层 [{ place, marker }]，不参与旅程
   const routeBoundsRef = useRef(null);
+  const busStopMarkersRef = useRef([]); // stops of a route picked in bus search
   const routeRef = useRef(route);
   const routePathRef = useRef(null); // Directions 返回的 overview_path（沿道路）
   const journeyRef = useRef(null);  // 站间路段预计算
@@ -247,6 +248,8 @@ export default function MapViewGoogle({ route, checkpoints = [], onFail, onArriv
     markersRef.current.forEach(({ marker }) => marker.setMap(null));
     markersRef.current = [];
     revealedRef.current.clear();
+    busStopMarkersRef.current.forEach((marker) => marker.setMap(null));
+    busStopMarkersRef.current = [];
 
     route.storyPoints?.forEach((place) => {
       if (place.lat == null || place.lng == null) return;
@@ -266,6 +269,35 @@ export default function MapViewGoogle({ route, checkpoints = [], onFail, onArriv
       // 步行模式：不画巴士路线，只留常显 pin + geofence（geofence 由下方单独 effect 绘制）
       if (routePolylineRef.current) { routePolylineRef.current.setMap(null); routePolylineRef.current = null; }
       journeyRef.current = null;
+      return;
+    }
+
+    // A route picked in the bus search: a line through its stops, with a small
+    // dot per stop (tap for its name). No road routing or narration.
+    if (route.pathIsStops) {
+      const path = route.path.map(([lat, lng]) => new gmaps.LatLng(lat, lng));
+      routePathRef.current = path;
+      journeyRef.current = null;
+      if (routePolylineRef.current) routePolylineRef.current.setMap(null);
+      routePolylineRef.current = new gmaps.Polyline({ path, map, strokeColor: ROUTE_COLOR, strokeWeight: 5, strokeOpacity: 0.9 });
+      const bounds = new gmaps.LatLngBounds();
+      path.forEach((p) => bounds.extend(p));
+      (route.busStops || []).forEach((stop) => {
+        const marker = new gmaps.Marker({
+          position: { lat: stop.lat, lng: stop.lng },
+          map,
+          title: placeName(stop),
+          zIndex: 40,
+          icon: { path: gmaps.SymbolPath.CIRCLE, scale: 4.5, fillColor: '#fffaf2', fillOpacity: 1, strokeColor: ROUTE_COLOR, strokeWeight: 2 },
+        });
+        marker.addListener('click', () => {
+          infoWindowRef.current.setContent(loadingPopupElement(placeName(stop)));
+          infoWindowRef.current.open({ map, anchor: marker });
+        });
+        busStopMarkersRef.current.push(marker);
+      });
+      routeBoundsRef.current = bounds;
+      map.fitBounds(bounds, 48);
       return;
     }
 
@@ -301,6 +333,23 @@ export default function MapViewGoogle({ route, checkpoints = [], onFail, onArriv
       },
     );
   }, [ready, route, mode]);
+
+  // A place picked in the search box: pan there and offer "Post here".
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !focus?.place) return;
+    const { place } = focus;
+    const position = { lat: place.lat, lng: place.lng };
+    map.panTo(position);
+    if (map.getZoom() < 17) map.setZoom(17);
+    infoWindowRef.current.close();
+    infoWindowRef.current.setContent(placePopupElement(place, {
+      onPost: (p) => { infoWindowRef.current.close(); onSelectPlaceRef.current?.(p); },
+      eyebrow: t('mapui.searched'),
+    }));
+    infoWindowRef.current.setPosition(position);
+    infoWindowRef.current.open(map);
+  }, [ready, focus]);
 
   // 打卡点图层：独立于路线和试乘，常显；点击直接打开该地点的投稿面板
   useEffect(() => {
@@ -666,7 +715,7 @@ export default function MapViewGoogle({ route, checkpoints = [], onFail, onArriv
       <button className={`lr-locate ${locating ? 'is-on' : ''}`} onClick={toggleLocate} title={locating ? t('mapui.stopLocate') : t('mapui.locate')} aria-label={locating ? t('mapui.stopLocate') : t('mapui.locate')}>
         <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="12" r="2" fill="currentColor" /></svg>
       </button>
-      {mode !== 'walk' && <button className={`lr-demo ${demoing ? 'is-on' : ''}`} onClick={toggleDemo} title={demoing ? t('mapui.stopDemo') : t('mapui.startDemo')} aria-label={demoing ? t('mapui.stopDemo') : t('mapui.startDemo')}>
+      {mode !== 'walk' && route?.storyPoints?.length > 0 && <button className={`lr-demo ${demoing ? 'is-on' : ''}`} onClick={toggleDemo} title={demoing ? t('mapui.stopDemo') : t('mapui.startDemo')} aria-label={demoing ? t('mapui.stopDemo') : t('mapui.startDemo')}>
         {demoing ? '■' : '▶'}
       </button>}
       {!demoing && checkpoints.length > 0 && (
