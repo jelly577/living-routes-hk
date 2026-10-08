@@ -5,7 +5,9 @@
 // endpoint is unavailable, the script is assembled from the user's own words,
 // so a video can always be made.
 import { findPostPlace } from '../data/locations.js';
-import { districts } from '../data/districts.js';
+import { districts, getDistrict } from '../data/districts.js';
+import { places } from '../data/places.js';
+import { checkpoints } from '../data/checkpoints.js';
 import { HK_FRAME } from '../data/hkOutline.js';
 
 export const MEMOIR_LANGUAGES = ['en', 'zh-HK', 'zh-CN'];
@@ -45,10 +47,37 @@ function nearestDistrict(point) {
   ), null);
 }
 
+// Typed place names ("西贡", "Sai Kung", "香港大學") have no coordinates of
+// their own; match them against places we do know. Longest name wins so
+// "香港大学" beats "香港".
+const squash = (text) => String(text || '').toLowerCase().replace(/[\s·・()（）\-_,，.。&＆'’]/g, '');
+const NAMED = [...places, ...checkpoints, ...districts]
+  .flatMap((place) => [place.nameEn, place.nameZh, place.nameZhHK]
+    .map((name) => squash(name))
+    .filter((name) => name.length >= 2)
+    .map((name) => ({ name, place })));
+export function matchPlaceName(text) {
+  const typed = squash(text);
+  if (typed.length < 2 || typed === 'nolocation') return null;
+  let best = null;
+  for (const entry of NAMED) {
+    if (typed.includes(entry.name) && (!best || entry.name.length > best.name.length)) best = entry;
+  }
+  return best?.place || null;
+}
+
+// The place a memory was attached to: the picked place, else the district the
+// user also chose, else a typed place name we recognise.
+function resolvePostPlace(post) {
+  const place = findPostPlace(post);
+  if (place || post?.locationType === 'none') return place;
+  return getDistrict(post?.districtId) || matchPlaceName(post?.place);
+}
+
 // Where a memory sits on the memoir map, best source first:
 // exact photo GPS (device-only) → the place/area the user chose → nothing.
 export function memoryPoint(post) {
-  const place = findPostPlace(post);
+  const place = resolvePostPlace(post);
   if (inFrame(post.photoGps)) {
     const named = place && place.kind !== 'district' ? place : null;
     return { lat: post.photoGps.lat, lng: post.photoGps.lng, precision: 'photo', place: named || nearestDistrict(post.photoGps), placeIsApproximate: !named };
