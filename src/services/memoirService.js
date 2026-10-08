@@ -51,27 +51,40 @@ function nearestDistrict(point) {
 // their own; match them against places we do know. Longest name wins so
 // "香港大学" beats "香港".
 const squash = (text) => String(text || '').toLowerCase().replace(/[\s·・()（）\-_,，.。&＆'’]/g, '');
-const NAMED = [...places, ...checkpoints, ...districts]
-  .flatMap((place) => [place.nameEn, place.nameZh, place.nameZhHK]
+// Landmarks come first so that on a tie ("Sai Kung" = the town and the
+// district) the more specific sight wins.
+const NAMED = [...landmarks, ...places, ...checkpoints, ...districts]
+  .flatMap((place) => [place.nameEn, place.nameZh, place.nameZhHK, ...(place.aliases || [])]
     .map((name) => squash(name))
     .filter((name) => name.length >= 2)
     .map((name) => ({ name, place })));
-export function matchPlaceName(text) {
+// District names that are also everyday English words; too risky to read
+// out of free-text captions ("the north shore", "southern food").
+const COMMON_WORDS = new Set(['north', 'eastern', 'southern', 'islands']);
+export function matchPlaceName(text, { caption = false } = {}) {
   const typed = squash(text);
   if (typed.length < 2 || typed === 'nolocation') return null;
   let best = null;
   for (const entry of NAMED) {
+    if (caption && COMMON_WORDS.has(entry.name)) continue;
     if (typed.includes(entry.name) && (!best || entry.name.length > best.name.length)) best = entry;
   }
   return best?.place || null;
 }
 
 // The place a memory was attached to: the picked place, else the district the
-// user also chose, else a typed place name we recognise.
+// user also chose, else a typed place name we recognise — and, for memories
+// saved without any location, a place named in the user's own caption
+// ("Walking past the Cenotaph in Central…" → Central). Memoir only; nothing
+// here is written back or published.
 function resolvePostPlace(post) {
   const place = findPostPlace(post);
-  if (place || post?.locationType === 'none') return place;
-  return getDistrict(post?.districtId) || matchPlaceName(post?.place);
+  if (place) return place;
+  if (post?.locationType !== 'none') {
+    const chosen = getDistrict(post?.districtId) || matchPlaceName(post?.place);
+    if (chosen) return chosen;
+  }
+  return matchPlaceName(post?.text, { caption: true }) || undefined;
 }
 
 // Where a memory sits on the memoir map, best source first:
