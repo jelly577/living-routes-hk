@@ -272,6 +272,7 @@ function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
         photo: file?.size && photoStyle !== 'none' ? file : undefined,
         text: form.get('memory'),
         ...locationOfMapPlace(place),
+        takenAt: form.get('takenDate') || null,
         author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
         role: 'tourist',
         consent: form.get('consent') === 'on',
@@ -315,6 +316,8 @@ function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
         </label>
         <PhotoUpload photoStyle={photoStyle} />
         <PhotoStylePicker value={photoStyle} onChange={setPhotoStyle} />
+        <label className="inline-label">{t('jr.date')}<input type="date" name="takenDate" max={new Date().toISOString().slice(0, 10)}/></label>
+        <p className="location-note">{t('posts.dateNote')}</p>
         <fieldset className="visibility-picker compact"><legend>{t('posts.visibility')}</legend><div>
           <label><input type="radio" name="visibility" value="community" checked={visibility === 'community'} onChange={() => setVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label>
           <label><input type="radio" name="visibility" value="private" checked={visibility === 'private'} onChange={() => setVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label>

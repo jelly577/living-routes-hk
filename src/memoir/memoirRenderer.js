@@ -34,6 +34,7 @@ const DUR = {
   travel: 2.8,
   hop: 1.2, // next stop at (nearly) the same spot
   memory: 4.6,
+  dayCard: 2.6, // a move that starts a new day
   outro: 4.0,
 };
 const CARD_IN = 0.55;
@@ -115,7 +116,10 @@ export function createMemoirPlan({ stops, script, images = {}, clips = {}, label
   planStops.forEach((stop, index) => {
     const prev = planStops[index - 1];
     const close = prev && spanKm(prev, stop) < 0.05;
-    push({ type: 'travel', stopIndex: index, from: prev ? 'stop' : 'overview' }, index === 0 ? DUR.firstTravel : close ? DUR.hop : DUR.travel);
+    // A new calendar day gets its date card, so give that move time to read it.
+    const newDay = !prev || prev.day !== stop.day;
+    const travel = index === 0 ? DUR.firstTravel : close ? DUR.hop : DUR.travel;
+    push({ type: 'travel', stopIndex: index, from: prev ? 'stop' : 'overview', newDay }, newDay ? Math.max(travel, DUR.dayCard) : travel);
     // A motion clip sets the memory's length (plus a moment to read the caption).
     stop.memories.forEach((memory, memoryIndex) => push({ type: 'memory', stopIndex: index, memoryIndex }, memoryDuration(memory)));
   });
@@ -516,13 +520,12 @@ function drawTopTitle(ctx, plan, state) {
   ctx.globalAlpha = appear;
   ctx.translate(0, (1 - appear) * 14);
   const shownDay = (state.seg.type === 'memory' && stop.memories[state.seg.memoryIndex]?.day) || stop.day;
-  const dayNumber = plan.days.indexOf(shownDay) + 1;
+
   ctx.fillStyle = C.accent;
   ctx.font = `700 20px ${SANS}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  const dayLabel = dayNumber > 0 ? (plan.labels.day ? plan.labels.day(dayNumber) : `DAY ${dayNumber}`) : '';
-  ctx.fillText([dayLabel, shownDay ? shownDay.replaceAll('-', '.') : ''].filter(Boolean).join('  ·  '), 48, 82);
+  ctx.fillText(shownDay ? shownDay.replaceAll('-', '.') : '', 48, 82);
   ctx.fillStyle = C.ink;
   ctx.font = `46px ${SERIF}`;
   const [line] = wrapText(ctx, stop.title, width - 96, 1);
@@ -610,6 +613,41 @@ function drawCard(ctx, plan, state, time) {
   }
 }
 
+// Between stops on different days: a large date card mid-move, so days read
+// as chapters (the date only, no clock time).
+function drawDayCard(ctx, plan, state) {
+  if (state.seg.type !== 'travel' || !state.seg.newDay || plan.days.length < 2) return;
+  const stop = plan.stops[state.seg.stopIndex];
+  if (!stop.day) return;
+  const t = state.local;
+  const alpha = Math.min(easeOut(clamp(t / 0.25)), 1 - easeInOut(clamp((t - 0.72) / 0.28)));
+  if (alpha <= 0) return;
+  const { width, height } = plan;
+  const [year, month, day] = stop.day.split('-');
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const w = 340;
+  const h = 170;
+  const x = (width - w) / 2;
+  const y = height * 0.62 - h / 2 + (1 - alpha) * 18;
+  roundRect(ctx, x, y, w, h, 28);
+  ctx.fillStyle = 'rgba(23,62,49,0.92)';
+  ctx.shadowColor = 'rgba(16,43,35,0.35)';
+  ctx.shadowBlur = 30;
+  ctx.shadowOffsetY = 10;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = C.paper;
+  ctx.font = `72px ${SERIF}`;
+  ctx.fillText(`${month}.${day}`, width / 2, y + 96);
+  ctx.fillStyle = '#e48555';
+  ctx.font = `700 24px ${SANS}`;
+  ctx.fillText(year, width / 2, y + 138);
+  ctx.restore();
+}
+
 function drawTitleOverlay(ctx, plan, state) {
   if (state.overlay <= 0) return;
   const { width, height } = plan;
@@ -658,6 +696,7 @@ export function drawMemoirFrame(ctx, plan, time) {
   drawRoute(ctx, plan, state, project);
   drawStops(ctx, plan, state, project, time);
   drawTopTitle(ctx, plan, state);
+  drawDayCard(ctx, plan, state);
   drawCard(ctx, plan, state, time);
   drawTitleOverlay(ctx, plan, state);
   ctx.restore();

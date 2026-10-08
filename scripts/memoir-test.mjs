@@ -4,7 +4,7 @@ import test from 'node:test';
 import { parseExif, resolveTakenAt } from '../src/services/photoMetadata.js';
 import { animateMemories, clipKey, fallbackMotion } from '../src/services/animationService.js';
 import {
-  matchPlaceName,
+  matchPlaceName, nearestNamedSpot,
   buildAiRequest, buildMemoirStops, generateMemoirScript, memoirDateBounds, mergeAiScript, templateMemoirScript,
 } from '../src/services/memoirService.js';
 
@@ -42,7 +42,10 @@ const posts = [
 test('orders by capture time, merges nearby memories, attaches unlocated ones', () => {
   const { stops, memoryCount } = buildMemoirStops(posts);
   assert.equal(memoryCount, 6);
-  assert.deepEqual(stops.map((stop) => stop.memories.map((m) => m.post.id)), [['a', 'b', 'n'], ['c', 'd'], ['e']]);
+  // Each day is its own run of stops; d (no usable location, its own day) stays where the trip was.
+  assert.deepEqual(stops.map((stop) => stop.memories.map((m) => m.post.id)), [['a', 'b', 'n'], ['c'], ['d'], ['e']]);
+  assert.equal(stops[2].place.id, 'district-yau-tsim-mong');
+  assert.equal(stops[2].day, '2026-10-03');
   assert.equal(stops[0].precision, 'photo');
   assert.equal(stops[0].day, '2026-10-01');
   assert.equal(stops[1].place.id, 'district-yau-tsim-mong');
@@ -131,8 +134,34 @@ test('typed place names and a side-picked district still put the memory on the m
   const { stops } = buildMemoirStops([typed, sideDistrict, unknown]);
   assert.equal(stops[0].place.id, 'district-sai-kung');
   assert.equal(stops[1].place.id, 'district-wan-chai');
-  assert.deepEqual(stops[1].memories.map((m) => m.post.id), ['s', 'u']); // unknown joins previous stop
+  assert.deepEqual(stops[2].memories.map((m) => m.post.id), ['u']); // own day, stays at the last place
+  assert.equal(stops[2].place.id, 'district-wan-chai');
   assert.equal(matchPlaceName('西贡码头海鲜')?.id, 'district-sai-kung');
   assert.equal(matchPlaceName('Sai Kung pier')?.id, 'district-sai-kung');
   assert.equal(matchPlaceName('香港'), null); // too vague: must not snap to 香港科学园
+});
+
+test('a day of map posts becomes one stop per popular sight, in order of first visit', () => {
+  const at = (id, time, lat, lng) => post(id, time, { locationType: 'place', placeInfo: { nameEn: 'tapped', lat, lng }, placeId: `pin:${id}` });
+  const posts = [
+    at('p1', '2026-10-05T02:00:00.000Z', 22.2938, 114.1712), // TST promenade
+    at('p2', '2026-10-05T04:00:00.000Z', 22.2759, 114.1460), // the Peak
+    at('p3', '2026-10-05T07:00:00.000Z', 22.2930, 114.1730), // back at the promenade, same day
+    at('p4', '2026-10-06T02:00:00.000Z', 22.2932, 114.1725), // promenade again, next day → its own stop
+    at('p5', '2026-10-06T05:00:00.000Z', 22.3825, 114.2745), // Sai Kung
+  ];
+  const { stops } = buildMemoirStops(posts);
+  assert.deepEqual(stops.map((s) => s.memories.map((m) => m.post.id)), [['p1', 'p3'], ['p2'], ['p4'], ['p5']]);
+  assert.deepEqual(stops.map((s) => s.place.id), ['lm-tst-promenade', 'lm-victoria-peak', 'lm-tst-promenade', 'lm-sai-kung-town']);
+  assert.deepEqual(stops.map((s) => s.day), ['2026-10-05', '2026-10-05', '2026-10-06', '2026-10-06']);
+  assert.equal(templateMemoirScript(stops, 'zh-CN').stops[3].title, '西贡市中心');
+});
+
+test('far from any sight: nearby memories cluster and are named by district', () => {
+  assert.equal(nearestNamedSpot({ lat: 22.5000, lng: 114.1350 }), null);
+  const far = (id, time, lat, lng) => post(id, time, { locationType: 'place', placeInfo: { nameEn: 'x', lat, lng }, placeId: `pin:${id}` });
+  const { stops } = buildMemoirStops([far('f1', '2026-10-07T02:00:00.000Z', 22.5000, 114.1350), far('f2', '2026-10-07T03:00:00.000Z', 22.5040, 114.1380)]);
+  assert.equal(stops.length, 1);
+  assert.equal(stops[0].place.id, 'district-north');
+  assert.equal(templateMemoirScript(stops, 'zh-CN').stops[0].title, '北区一带');
 });
