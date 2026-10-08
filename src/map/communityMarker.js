@@ -1,0 +1,2 @@
+// Community areas are speech bubbles, never numbers: 1–5 belong to bus stops.
+export const communityMarkerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="9" fill="#c4502f" stroke="#fffaf2" stroke-width="2.5"/><path d="M10 10h16v12H17l-5 4v-4h-2z" fill="none" stroke="#fffaf2" stroke-width="2" stroke-linejoin="round"/><path d="M14 14h8M14 18h6" stroke="#fffaf2" stroke-width="1.5" stroke-linecap="round"/></svg>`;

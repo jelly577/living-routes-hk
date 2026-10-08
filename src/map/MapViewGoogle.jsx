@@ -5,6 +5,7 @@ import { segmentThemes } from './segmentThemes.js';
 import { getLanguage, placeName, t } from '../i18n.js';
 import { loadingPopupElement, placePopupElement, shortAddress } from './checkpointPopup.js';
 import { makeUserPlace } from '../data/locations.js';
+import { communityMarkerSvg } from './communityMarker.js';
 
 const segmentThemeText = (theme) => !theme ? '' : getLanguage() === 'zh-HK' ? theme.zh : getLanguage() === 'zh-CN' ? (theme.zhCN || theme.zh) : theme.en;
 
@@ -22,9 +23,7 @@ function pinIcon(gmaps, order, active) {
 // Check-in points: smaller, no number, so they never read as route stops.
 function checkpointIcon(gmaps, place) {
   if (place.kind === 'district') {
-    const count = Number(place.postCount) || 0;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42"><circle cx="21" cy="21" r="19" fill="#173e31" stroke="#fffaf2" stroke-width="3"/><text x="21" y="26" fill="white" text-anchor="middle" font-family="Arial" font-size="14">${count}</text></svg>`;
-    return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, anchor: new gmaps.Point(21, 21), scaledSize: new gmaps.Size(42, 42) };
+    return { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(communityMarkerSvg)}`, anchor: new gmaps.Point(18, 18), scaledSize: new gmaps.Size(36, 36) };
   }
   if (place.kind === 'user-place') {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="9" cy="9" r="7" fill="#fffaf2" stroke="#c4502f" stroke-width="3"/></svg>`;

@@ -319,7 +319,7 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .compose-actions .form-error { max-height: 64px; overflow-y: auto; margin: 0 0 8px; }
 .compose-card button:disabled { cursor: wait; opacity: .65; }
 .compose-card input:focus-visible + span { outline: 2px solid #c4502f; outline-offset: 2px; }
-.lr-district-marker { display: grid; place-items: center; width: 42px; height: 42px; border: 3px solid #fffaf2; border-radius: 50%; background: #173e31; color: white; font-size: 14px; font-weight: 700; box-shadow: 0 3px 10px #173e3140; }
+.lr-district-marker { display: block; width: 36px; height: 36px; filter: drop-shadow(0 3px 5px #173e3140); }
 .location-note { color: #68756f; font-size: 11px; line-height: 1.5; margin: 8px 0 14px; }
 .place-posts-list { max-height: none; overflow: visible; }
 .compose-inline .inline-actions { position: sticky; bottom: -22px; background: #fffaf2; padding: 12px 0; z-index: 2; }
