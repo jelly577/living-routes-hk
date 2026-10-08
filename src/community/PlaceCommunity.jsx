@@ -21,6 +21,7 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   const [posts, setPosts] = useState([]);
   const [detail, setDetail] = useState(null); // { type: 'story'|'post', data }
   const [playingId, setPlayingId] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const scrollRef = useRef(null);
 
   const stories = useMemo(() => getPlaceStories(place?.id), [place?.id]);
@@ -31,7 +32,10 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
 
   useEffect(() => {
     let cancelled = false;
-    getPosts({ placeId: place?.id }).then((r) => { if (!cancelled) setPosts(r); }).catch(() => {});
+    setPosts([]); setLoadError('');
+    getPosts({ placeId: place?.comparisonPostId ? undefined : place?.id, postId: place?.comparisonPostId })
+      .then((r) => { if (!cancelled) setPosts(r); })
+      .catch((error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
   }, [place?.id]);
 
@@ -130,23 +134,23 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
   const nothingAtAll = oldCards.length === 0 && modern.length === 0;
 
   return createPortal(
-    <div className="pc-door" role="dialog" aria-modal="true" aria-label={placeName(place)}>
+    <div className="pc-door" role="dialog" aria-modal="true" aria-label={placeName(place) || t('loc.none')}>
       <button className="pc-close" onClick={onClose} aria-label={t('common.close')}>×</button>
 
       {/* 单个滚动容器：一整屏今昔照片（浮着新老聊天框）→ 下拉到照片墙 */}
       <div className="pc-scroll" ref={scrollRef}>
         <div className="pc-hero">
-          <div className="pc-hero-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
-          <div className="pc-hero-img now">{now?.url ? <img src={now.url} alt="" /> : <div className="pc-hero-ph">{placeName(place)}</div>}</div>
+          <div className="pc-hero-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-hero-ph">{t('pc.thenEmpty')}</div>}</div>
+          <div className="pc-hero-img now">{(modern.find((p) => p.image)?.image || now?.url) ? <img src={modern.find((p) => p.image)?.image || now.url} alt="" /> : <div className="pc-hero-ph">{placeName(place) || t('loc.none')}</div>}</div>
           <div className="pc-hero-line" />
           <div className="pc-hero-shade" />
-          <button className="pc-time-travel" onClick={() => onOpenTimeMachine?.(place)}>
+          {past?.url && Number.isFinite(place?.lat) && Number.isFinite(place?.lng) && <button className="pc-time-travel" onClick={() => onOpenTimeMachine?.(place)}>
             <span className="pc-tt-zh">{t('pc.timeTravel')}</span>
             <span className="pc-tt-en">{t('pc.timeTravelEn')}</span>
-          </button>
+          </button>}
           <header className="pc-head">
             <span className="eyebrow">{t('pc.eyebrow')}</span>
-            <h1>{placeName(place)}</h1>
+            <h1>{placeName(place) || t('loc.none')}</h1>
           </header>
 
           {/* 对话框：浮在照片上的新老对话气泡，老在旧照片一侧、新在新照片一侧 */}
@@ -166,6 +170,7 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
 
         {/* 下拉之后：照片墙（相框帖子） */}
         <div className="pc-wall">
+          {loadError && <p role="alert">{loadError}</p>}
           {nothingAtAll ? (
             <p className="pc-wall-empty">{t('pc.empty')}</p>
           ) : (

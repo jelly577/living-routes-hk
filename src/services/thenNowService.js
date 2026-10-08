@@ -2,18 +2,8 @@
 // heritage place, used by the community photo wall and the immersive door.
 import { getPlaceById, places } from '../data/places.js';
 import { depthMaps } from '../content/depthMaps.js';
-
-// Curated place → district mapping (the five heritage stops sit in two
-// districts). Kept explicit rather than inferred from coordinates.
-const PLACE_DISTRICT = {
-  'central-market': 'district-central-western',
-  'court-of-final-appeal': 'district-central-western',
-  'lee-tung-street': 'district-wan-chai',
-  'blue-house': 'district-wan-chai',
-  'happy-valley-racecourse': 'district-wan-chai',
-};
-
-export const placeDistrictId = (placeId) => PLACE_DISTRICT[placeId] || null;
+import { placeDistrictId } from './comparisonService.js';
+export { placeDistrictId, comparisonPlaceForPost, postMatchesComparisonPlace } from './comparisonService.js';
 
 export function isHeritagePlace(placeId) {
   const place = getPlaceById(placeId);

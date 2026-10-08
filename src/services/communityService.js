@@ -4,6 +4,7 @@ import { readPhotoMetadata, resolveTakenAt } from './photoMetadata.js';
 import { applyPhotoStyle, deleteMemoryPost, listMemoryPosts, readPhotoFile, saveMemoryPost } from './memoryPostStorage.js';
 import { isPointInBounds, simulateNetwork } from './utils.js';
 import { sharedCommunityEnabled, readSharedPosts, publishSharedPost, removeSharedPost } from './sharedCommunityService.js';
+import { placeDistrictId, postMatchesComparisonPlace } from './comparisonService.js';
 
 async function migratePhotoTreatment(post) {
   if (!post.image) return post;
@@ -29,15 +30,18 @@ async function migratePhotoTreatment(post) {
   return migrated;
 }
 
-export async function getPosts({ filter = 'all', bounds, placeId, districtId } = {}) {
+export async function getPosts({ filter = 'all', bounds, placeId, districtId, postId } = {}) {
   const savedPosts = await Promise.all((await listMemoryPosts()).map(migratePhotoTreatment));
   const remotePosts = await readSharedPosts();
   const remoteIds = new Set(remotePosts.map((post) => post.id));
   const communityPosts = [...remotePosts, ...savedPosts.filter((post) => post.visibility === 'community' && (!sharedCommunityEnabled || !post.shared) && !remoteIds.has(post.id))];
   const filtered = communityPosts.filter((post) => {
+    if (post.visibility !== 'community') return false;
+    if (postId && post.id !== postId) return false;
     if (filter !== 'all' && post.kind !== filter) return false;
     const region = districtId || (getDistrict(placeId) ? placeId : null);
-    if (region ? post.districtId !== region : placeId && post.placeId !== placeId) return false;
+    const postDistrict = placeDistrictId(findPostPlace(post)?.id) || post.districtId;
+    if (region ? postDistrict !== region : placeId && !postMatchesComparisonPlace(post, placeId)) return false;
     const place = findPostPlace(post);
     return !place || isPointInBounds(place, bounds);
   });
@@ -76,7 +80,8 @@ export async function addPost({
   // `location` is a known place id ('central-market', 'cp-hku', …), a place
   // object picked on the map (see makeUserPlace), or free text.
   const pickedPlace = location && typeof location === 'object' ? location : null;
-  const place = pickedPlace || findKnownPlace(location);
+  const place = findKnownPlace(pickedPlace?.id) || findKnownPlace(pickedPlace?.nameEn)
+    || findKnownPlace(pickedPlace?.nameZh) || pickedPlace || findKnownPlace(location);
   // Read capture time / GPS before the canvas re-render strips EXIF.
   const metadata = photo && typeof photo !== 'string' ? await readPhotoMetadata(photo) : { takenAt: null, gps: null };
   const image = typeof photo === 'string' ? await applyPhotoStyle(photo, photoStyle) : await readPhotoFile(photo, photoStyle);
@@ -88,7 +93,7 @@ export async function addPost({
     placeId: place?.id || null,
     place: district && locationType === 'district' ? district.nameEn : place?.nameEn || (typeof location === 'string' && location.trim()) || 'No location',
     locationType,
-    districtId: district?.id || null,
+    districtId: placeDistrictId(place?.id) || district?.id || null,
     // Places outside our data files keep their own name and coordinates so the
     // map can show them again later.
     placeInfo: pickedPlace ? {
