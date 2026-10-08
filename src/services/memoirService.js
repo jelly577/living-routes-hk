@@ -151,7 +151,7 @@ const COPY = {
 // Labels drawn inside the video frames.
 export function memoirLabels(language = 'en') {
   const { brand, day, stats } = COPY[language] || COPY.en;
-  return { brand, day, stats };
+  return { brand, day, stats, language: COPY[language] ? language : 'en' };
 }
 
 export function stopLabel(stop, language = 'en') {
