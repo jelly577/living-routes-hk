@@ -34,3 +34,15 @@ test('area, named place and no-location entries share Community without exposing
   assert.equal(markers.find((item) => item.id === 'district-wan-chai').postCount, 1);
   await assert.rejects(addPost({ text: 'Missing area', locationType: 'district' }), /choose a district/);
 });
+import { communityMarkerSvg } from '../src/map/communityMarker.js';
+import { readFileSync } from 'node:fs';
+
+test('community markers have no numeric labels; route stop numbers remain separate', () => {
+  assert.ok(!communityMarkerSvg.includes('<text'));
+  for (const filename of ['MapViewGoogle.jsx', 'MapViewLeaflet.jsx']) {
+    const source = readFileSync(new URL(`../src/map/${filename}`, import.meta.url), 'utf8');
+    assert.ok(source.includes('communityMarkerSvg'));
+    assert.ok(!source.includes('Number(place.postCount)'));
+    assert.ok(source.includes('place.order') || source.includes('${order}'));
+  }
+});

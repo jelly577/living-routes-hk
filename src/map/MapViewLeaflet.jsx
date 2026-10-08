@@ -5,6 +5,7 @@ import { escapeHtml, fetchRoadPath, reverseGeocode } from './osm.js';
 import { placeName, t } from '../i18n.js';
 import { placePopupElement, shortAddress } from './checkpointPopup.js';
 import { makeUserPlace } from '../data/locations.js';
+import { communityMarkerSvg } from './communityMarker.js';
 
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -14,7 +15,7 @@ function markerIcon(place) {
 }
 
 function checkpointIcon(place) {
-  if (place.kind === 'district') return L.divIcon({ className: 'lr-marker-wrap', html: `<span class="lr-district-marker">${Number(place.postCount) || 0}</span>`, iconSize: [42, 42], iconAnchor: [21, 21], popupAnchor: [0, -22] });
+  if (place.kind === 'district') return L.divIcon({ className: 'lr-marker-wrap', html: `<span class="lr-district-marker">${communityMarkerSvg}</span>`, iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -19] });
   const cls = place.kind === 'user-place' ? 'lr-cp-marker is-user' : `lr-cp-marker${place.category === 'organizer' ? ' is-organizer' : ''}`;
   const size = place.kind === 'user-place' ? 18 : 28;
   return L.divIcon({ className: 'lr-marker-wrap', html: `<span class="${cls}">${place.kind === 'user-place' ? '' : '✦'}</span>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -14] });
