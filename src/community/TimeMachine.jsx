@@ -27,9 +27,13 @@ export default function TimeMachine({ place, onClose }) {
   const svRef = useRef(null);
   const streetElRef = useRef(null);
 
+  // The "then" side is read by the elder voice profile; the "now" side stays
+  // neutral. Voice only affects the browser speech-synthesis fallback (the
+  // generated narration audio file, when present, plays as-is).
   const narrator = useMemo(() => createNarrator({
+    voice: era === 'old' ? 'elder' : 'neutral',
     onStateChange: (s) => setPlaying(s.state === 'loading' || s.state === 'playing'),
-  }), []);
+  }), [era]);
   useEffect(() => () => narrator.stop(), [narrator]);
 
   // 360° Street View for the "now" side. Initialised once; the parent renders
@@ -144,7 +148,8 @@ export default function TimeMachine({ place, onClose }) {
           </div>
         )}
 
-        <span className="tm-hint">{era === 'old' ? `◎ ${t('tm.parallaxHint')}` : `⟲ ${t('tm.rotateHint')}`}</span>
+        {/* 只有「今」的 360° 街景真的能拖动旋转才给提示；「昔」是静态照片，不再写可拖动 */}
+        {era === 'new' && <span className="tm-hint">⟲ {t('tm.rotateHint')}</span>}
       </div>
     </div>,
     document.body,

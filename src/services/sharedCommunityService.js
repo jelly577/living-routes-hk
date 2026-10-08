@@ -10,9 +10,12 @@ let sessionPromise;
 async function ownerSession() {
   if (!client) throw new Error('Shared Community is not connected yet. Save privately for now.');
   if (!sessionPromise) sessionPromise = (async () => {
-    const { data, error } = await client.auth.getSession();
-    if (error) throw error;
-    if (data.session) return data.session;
+    // A cached access token can disagree with the server (clock skew, a rotated
+    // secret, or a days-old anonymous session), so never trust `expires_at`:
+    // force a server-validated refresh, then fall back to a fresh anonymous
+    // sign-in if the refresh token itself has gone stale.
+    const refreshed = await client.auth.refreshSession();
+    if (!refreshed.error && refreshed.data.session) return refreshed.data.session;
     const result = await client.auth.signInAnonymously();
     if (result.error) throw result.error;
     return result.data.session;
@@ -22,9 +25,8 @@ async function ownerSession() {
 
 async function readSharedPosts() {
   if (!client) return [];
-  const { data: session, error: sessionError } = await client.auth.getSession();
-  if (sessionError) throw sessionError;
-  const ownerId = session.session?.user.id;
+  const session = await ownerSession();
+  const ownerId = session.user.id;
   const { data, error } = await client.from('community_posts')
     .select('id,payload,owner_id').order('created_at', { ascending: false }).limit(200);
   if (error) throw new Error(`Community could not load: ${error.message}`);
@@ -56,6 +58,9 @@ async function publishSharedPost(post) {
   delete payload.canDelete;
   // Exact photo GPS is for the owner's private memoir only; never publish it.
   delete payload.photoGps;
+  // The recorded voice sample stays on the submitter's device (future AI clone);
+  // playback is synthesised on demand, so nothing audio-related is published.
+  delete payload.voiceSample;
   const { error } = await client.from('community_posts').insert({
     id: post.id, owner_id: session.user.id, payload,
   });

@@ -11,9 +11,11 @@ import { addPost, analyzeInterestProfile, createNarrator, deletePost, getMyPosts
 import { applyPhotoStyle } from './services/memoryPostStorage.js';
 import MapView from './MapView.jsx';
 import MemoirStudio from './memoir/MemoirStudio.jsx';
+import DepthClipDemo from './memoir/DepthClipDemo.jsx';
 import CommunityPhotoWall from './community/CommunityPhotoWall.jsx';
 import PlaceCommunity from './community/PlaceCommunity.jsx';
 import TimeMachine from './community/TimeMachine.jsx';
+import VoiceSampleRecorder from './community/VoiceSampleRecorder.jsx';
 import { isHeritagePlace } from './services/thenNowService.js';
 import { localDay, momentOf } from './services/memoirService.js';
 import { UI_LANGUAGES, defaultNarration, getLanguage, placeName, routeTitle, setLanguage as setUiLanguage, t } from './i18n.js';
@@ -757,6 +759,10 @@ function CommunityScreen({ profile, onPostAdded }) {
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [loadError, setLoadError] = useState('');
   const [composerError, setComposerError] = useState('');
+  const [composerKind, setComposerKind] = useState('tourist'); // 'tourist' | 'local' (elder story)
+  const [storyVoiceConsent, setStoryVoiceConsent] = useState(false);
+  const [storyVoiceSample, setStoryVoiceSample] = useState(null);
+  const [storyRecording, setStoryRecording] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -775,13 +781,17 @@ function CommunityScreen({ profile, onPostAdded }) {
     const file = form.get('photo');
     setSavingPost(true);
     try {
+      const isLocal = composerKind === 'local';
       const created = await addPost({
         photo: file?.size && form.get('photoStyle') !== 'none' ? file : undefined,
         text: form.get('memory'),
         ...postLocationFromForm(form),
-        role: 'tourist',
+        role: isLocal ? 'local' : 'tourist',
+        era: isLocal ? 'ARCHIVAL' : 'MODERN',
         consent: form.get('consent') === 'on',
-        visibility: form.get('visibility'),
+        voiceConsent: isLocal && storyVoiceConsent,
+        voiceSample: isLocal ? storyVoiceSample : null,
+        visibility: isLocal ? 'community' : form.get('visibility'),
         photoStyle: form.get('photoStyle'),
         author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
       });
@@ -847,19 +857,33 @@ function CommunityScreen({ profile, onPostAdded }) {
     <CommunityPhotoWall posts={posts} onOpenPlace={(place) => { setPlaceCommunity(place); setTimeTravel(false); }} />
     {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
     {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
-    <button className="fab" onClick={() => { setComposerError(''); setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposer(true); }}>＋</button>
-    {composer && <ComposeOverlay title={t('comp.title')} busy={savingPost} onClose={() => setComposer(false)}>
+    <button className="fab" onClick={() => { setComposerError(''); setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposerKind('tourist'); setStoryVoiceConsent(false); setStoryRecording(false); setStoryVoiceSample(null); setComposer(true); }}>＋</button>
+    {composer && <ComposeOverlay title={t(composerKind === 'local' ? 'story.title' : 'comp.title')} busy={savingPost} onClose={() => setComposer(false)}>
       <form className="compose-card memory-compose" onSubmit={submitPost} aria-busy={savingPost}>
-        <header className="compose-header"><button type="button" className="close" aria-label={t('common.close')} disabled={savingPost} onClick={() => setComposer(false)}>×</button><span className="eyebrow">{t('comp.eyebrow')}</span><h2>{t('comp.title')}</h2></header>
+        <header className="compose-header"><button type="button" className="close" aria-label={t('common.close')} disabled={savingPost} onClick={() => setComposer(false)}>×</button><span className="eyebrow">{composerKind === 'local' ? t('story.eyebrow') : t('comp.eyebrow')}</span><h2>{composerKind === 'local' ? t('story.title') : t('comp.title')}</h2></header>
         <div className="compose-fields"><fieldset disabled={savingPost} className="compose-inputs">
-          <PlaceSelect /><label>{t('comp.story')}<textarea name="memory" required placeholder={t('comp.storyPlaceholder')}/></label>
+          <div className="segmented compose-kind">
+            <button type="button" className={composerKind === 'tourist' ? 'active' : ''} onClick={() => setComposerKind('tourist')}>{t('comp.kindTourist')}</button>
+            <button type="button" className={composerKind === 'local' ? 'active' : ''} onClick={() => setComposerKind('local')}>{t('comp.kindLocal')}</button>
+          </div>
+          <PlaceSelect /><label>{composerKind === 'local' ? t('story.text') : t('comp.story')}<textarea name="memory" required placeholder={composerKind === 'local' ? t('story.textPh') : t('comp.storyPlaceholder')}/></label>
           <PhotoUpload photoStyle={composerPhotoStyle}/><PhotoStylePicker value={composerPhotoStyle} onChange={setComposerPhotoStyle}/>
-          <fieldset className="visibility-picker"><legend>{t('comp.visibility')}</legend><div>
-            <label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label>
-            <label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label>
-          </div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> {t('comp.consent')}</label>
+          {composerKind === 'local' ? (
+            <>
+              <label className="consent-row"><input type="checkbox" checked={storyVoiceConsent} onChange={(event) => { setStoryVoiceConsent(event.target.checked); if (!event.target.checked) { setStoryRecording(false); setStoryVoiceSample(null); } }} /> {t('story.voiceConsent')}</label>
+              {storyVoiceConsent && !storyRecording && <button type="button" className="secondary" onClick={() => setStoryRecording(true)}>{t('story.recordVoice')}</button>}
+              {storyVoiceConsent && storyRecording && <VoiceSampleRecorder sentence={t('story.sentenceText')} onRecorded={(dataUrl) => setStoryVoiceSample(dataUrl)} />}
+            </>
+          ) : (
+            <>
+              <fieldset className="visibility-picker"><legend>{t('comp.visibility')}</legend><div>
+                <label><input type="radio" name="visibility" value="private" checked={composerVisibility === 'private'} onChange={() => setComposerVisibility('private')}/><span>{t('comp.onlyMe')}<small>{t('comp.privateJournal')}</small></span></label>
+                <label><input type="radio" name="visibility" value="community" checked={composerVisibility === 'community'} onChange={() => setComposerVisibility('community')}/><span>{t('comp.community')}<small>{t('comp.pending')}</small></span></label>
+              </div></fieldset><label className="consent-row"><input type="checkbox" name="consent"/> {t('comp.consent')}</label>
+            </>
+          )}
         </fieldset></div>
-        <footer className="compose-actions">{composerError && <p className="form-error" role="alert">{composerError}</p>}<button type="submit" className="primary wide" disabled={savingPost}>{savingPost ? t('comp.saving') : composerVisibility === 'community' ? t('comp.postBtn') : t('comp.saveBtn')}</button></footer>
+        <footer className="compose-actions">{composerError && <p className="form-error" role="alert">{composerError}</p>}<button type="submit" className="primary wide" disabled={savingPost}>{savingPost ? t('comp.saving') : composerKind === 'local' ? t('story.postBtn') : composerVisibility === 'community' ? t('comp.postBtn') : t('comp.saveBtn')}</button></footer>
       </form>
     </ComposeOverlay>}
     {voiceDemo && <div className="modal-backdrop"><div className="compose-card voice-card"><button type="button" className="close" onClick={() => setVoiceDemo(false)}>×</button>{!voiceResult ? <><span className="eyebrow">{t('voice.eyebrow')}</span><h2>{t('voice.title')}</h2><p className="modal-intro">{t('voice.intro')}</p><form onSubmit={submitVoice}><label>{t('voice.place')}<select name="voicePlace" defaultValue="blue-house">{['blue-house', 'lee-tung-street', 'central-market'].map((id) => <option key={id} value={id}>{placeName(getPlaceById(id))}</option>)}</select></label><label className="upload">{t('voice.add')} <input type="file" name="voice" accept="audio/*"/><small>{t('voice.optional')}</small></label><label>{t('voice.transcript')} <textarea name="voiceTranscript" placeholder={t('voice.transcriptPh')}/></label><div className="voice-consents"><label className="consent-row"><input type="checkbox" name="voiceConsent"/> {t('voice.consent')}</label><label className="consent-row"><input type="checkbox" name="voiceReplicaConsent"/> {t('voice.replica')}</label><small>{t('voice.replicaNote')}</small></div><button className="primary wide" disabled={voiceLoading}>{voiceLoading ? t('voice.processing') : t('voice.run')}</button></form></> : <VoiceResult result={voiceResult} onReset={() => setVoiceResult(null)} />}</div></div>}
@@ -983,6 +1007,9 @@ export default function App() {
     community: <CommunityScreen profile={fullProfile} onPostAdded={refreshMyPosts} />,
     journal: <JournalScreen profile={fullProfile} />,
   })[active], [active, fullProfile, uiLanguage]);
+
+  // Prototype-only preview, kept out of the normal flow.
+  if (typeof window !== 'undefined' && window.location.hash === '#depthclip') return <DepthClipDemo />;
 
   if (!uiLanguage || pickingLanguage) return <LanguagePicker onPick={pickLanguage} />;
   if (!ethicsConsent) return <EthicsConsent onAccept={setEthicsConsent} />;
