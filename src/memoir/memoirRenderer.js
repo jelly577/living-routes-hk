@@ -444,12 +444,19 @@ function drawStops(ctx, plan, state, project, time) {
     : state.seg.type === 'memory' ? state.seg.stopIndex
       : state.seg.type === 'travel' ? state.seg.stopIndex - (state.local < 0.98 ? 1 : 0) : -1;
   const pills = [];
-  plan.stops.forEach((stop, i) => {
+  // Stops can share a spot (same sight on two days). Draw not-yet-reached
+  // stops first, then reached ones, the current stop last, so the pin on top
+  // is always the one the video is talking about.
+  const current = state.seg.type === 'outro' ? -1 : reached;
+  const order = plan.stops.map((_, i) => i)
+    .sort((a, b) => (a === current) - (b === current) || (a <= reached) - (b <= reached) || a - b);
+  order.forEach((i) => {
+    const stop = plan.stops[i];
     const p = project(stop);
     const done = i <= reached;
-    const current = i === reached && state.seg.type !== 'outro';
-    const r = current ? 17 : 13;
-    if (done && stop.day) pills.push({ x: p.x, y: p.y - r - 22, text: stopDayText(stop, state, i), current, order: i });
+    const isCurrent = i === current;
+    const r = isCurrent ? 12 : 8;
+    if (done && stop.day) pills.push({ x: p.x, y: p.y - r - 20, text: stopDayText(stop, state, i), current: isCurrent, order: i });
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fillStyle = done ? C.ink : 'rgba(248,245,238,0.9)';
@@ -457,11 +464,7 @@ function drawStops(ctx, plan, state, project, time) {
     ctx.lineWidth = 3;
     ctx.strokeStyle = done ? C.paper : 'rgba(23,62,49,0.45)';
     ctx.stroke();
-    ctx.fillStyle = done ? C.paper : C.ink;
-    ctx.font = `700 ${current ? 17 : 14}px ${SANS}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), p.x, p.y + 1);
+    // Plain dots: no stop numbers (the place name and date say where we are).
   });
   // The date travels with the route: each reached stop keeps its date label.
   // The current stop wins; otherwise later stops win; colliding labels are skipped.

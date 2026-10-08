@@ -132,12 +132,12 @@ test('typed place names and a side-picked district still put the memory on the m
   const sideDistrict = post('s', '2026-10-09T10:00:00.000Z', { locationType: 'place', placeId: null, place: 'my favourite cafe', districtId: 'district-wan-chai' });
   const unknown = post('u', '2026-10-10T10:00:00.000Z', { locationType: 'place', placeId: null, place: 'somewhere nice' });
   const { stops } = buildMemoirStops([typed, sideDistrict, unknown]);
-  assert.equal(stops[0].place.id, 'district-sai-kung');
+  assert.equal(stops[0].place.id, 'lm-sai-kung-town');
   assert.equal(stops[1].place.id, 'district-wan-chai');
   assert.deepEqual(stops[2].memories.map((m) => m.post.id), ['u']); // own day, stays at the last place
   assert.equal(stops[2].place.id, 'district-wan-chai');
-  assert.equal(matchPlaceName('西贡码头海鲜')?.id, 'district-sai-kung');
-  assert.equal(matchPlaceName('Sai Kung pier')?.id, 'district-sai-kung');
+  assert.equal(matchPlaceName('西贡码头海鲜')?.id, 'lm-sai-kung-town');
+  assert.equal(matchPlaceName('Sai Kung pier')?.id, 'lm-sai-kung-town');
   assert.equal(matchPlaceName('香港'), null); // too vague: must not snap to 香港科学园
 });
 
@@ -164,4 +164,18 @@ test('far from any sight: nearby memories cluster and are named by district', ()
   assert.equal(stops.length, 1);
   assert.equal(stops[0].place.id, 'district-north');
   assert.equal(templateMemoirScript(stops, 'zh-CN').stops[0].title, '北区一带');
+});
+
+test('memories saved without a location are placed by the place named in their caption', () => {
+  const none = (id, time, text) => post(id, time, { locationType: 'none', text });
+  const { stops } = buildMemoirStops([
+    none('c1', '2026-09-28T02:00:00.000Z', 'Walking past this monument in bustling Central always slows me down.'),
+    none('c2', '2026-09-28T12:00:00.000Z', 'Victoria Harbour is where my fondest memories of Hong Kong live.'),
+    none('c3', '2026-09-29T03:00:00.000Z', 'Sai Kung'),
+    none('c4', '2026-09-29T05:00:00.000Z', 'Lunch by the north shore'), // no place: joins the Sai Kung stop
+  ]);
+  assert.deepEqual(stops.map((s) => s.place?.id), ['lm-central', 'lm-tst-promenade', 'lm-sai-kung-town']);
+  assert.deepEqual(stops[2].memories.map((m) => m.post.id), ['c3', 'c4']);
+  assert.equal(matchPlaceName('the north shore', { caption: true }), null);
+  assert.equal(matchPlaceName('维港夜景', { caption: true })?.id, 'lm-tst-promenade');
 });
