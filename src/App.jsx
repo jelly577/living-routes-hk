@@ -6,8 +6,8 @@ import { shareAllSavedCommunityPosts } from './services/communityService.js';
 import { sharedCommunityEnabled } from './services/sharedCommunityService.js';
 import { checkpoints as checkpointList } from './data/checkpoints.js';
 import { findPostPlace, postLocationGroups } from './data/locations.js';
-import { districts, getDistrict } from './data/districts.js';
-import { addPost, analyzeInterestProfile, createNarrator, deletePost, getMyPosts, getPostedPlaces, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
+import { districts, getDistrict, nearestDistrict } from './data/districts.js';
+import { addPost, analyzeInterestProfile, createNarrator, deletePost, setPostVisibility, getMyPosts, getPostedPlaces, getPosts, getRoute, getStoryForJourney, processVoiceSubmission } from './services/index.js';
 import { applyPhotoStyle } from './services/memoryPostStorage.js';
 import MapView from './MapView.jsx';
 import MemoirStudio from './memoir/MemoirStudio.jsx';
@@ -271,7 +271,7 @@ function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
       const created = await addPost({
         photo: file?.size && photoStyle !== 'none' ? file : undefined,
         text: form.get('memory'),
-        ...postLocationFromForm(form),
+        ...locationOfMapPlace(place),
         author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
         role: 'tourist',
         consent: form.get('consent') === 'on',
@@ -309,7 +309,7 @@ function PlacePostsSheet({ place, profile, onClose, onPostAdded }) {
     )}
     {composing ? (
       <form className="compose-inline" onSubmit={submitPost}>
-        <PlaceSelect initialPlace={place}/>
+        <p className="posting-at">⌖ {t('posts.at', { place: placeName(place) })}</p>
         <label className="inline-label">{t('posts.label')}
           <textarea name="memory" required placeholder={t('posts.placeholder')} />
         </label>
@@ -470,7 +470,7 @@ function DemoNarration({ segment, profile }) {
   </div>;
 }
 
-function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
+function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, onDismissPostHint }) {
   const [destination, setDestination] = useState('');
   const [route, setRoute] = useState(null);
   const [playerOpen, setPlayerOpen] = useState(false);
@@ -553,6 +553,7 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
         <form className="route-search" onSubmit={submit}><span>⌕</span><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder={t('map.destPlaceholder')}/><button type="submit">{t('map.routeBtn')}</button></form>
       </>
     )}
+    {postHint && !postsPlace && <button type="button" className="map-post-hint" onClick={onDismissPostHint}><b>{t('map.postHintTitle')}</b><span>{t('map.postHint')}</span><i aria-hidden="true">×</i></button>}
     {loading && <div className="map-hint"><b>{t('map.preparing')}</b><span>{t('map.plotting')}</span></div>}
     {searched && route && !playerOpen && <div className="route-card page-enter">
       <div className="sheet-handle"/><span className="eyebrow">{t('route.eyebrow')}</span><h2>{routeTitle()}</h2>
@@ -566,6 +567,17 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage }) {
     {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
     {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
   </section>;
+}
+
+// A post made from the map goes exactly where the user tapped: a district pin
+// stays a district post; a heritage stop / check-in point keeps its id; a
+// tapped spot or Google place stores its own name and coordinates. Every
+// place post is also filed under its nearest district so it joins the
+// Community wall for that area.
+function locationOfMapPlace(place) {
+  if (place.kind === 'district') return { locationType: 'district', districtId: place.id };
+  const district = nearestDistrict(place);
+  return { locationType: 'place', location: place.kind === 'user-place' ? place : place.id, districtId: district?.id || null };
 }
 
 // 发帖地点：文化路线 5 站 + 打卡点 + 其他（自由填写）
@@ -740,7 +752,7 @@ function ComposeOverlay({ children, onClose, busy, title }) {
   return createPortal(<div ref={overlayRef} className="modal-backdrop compose-overlay" role="dialog" aria-modal="true" aria-label={title} onKeyDown={handleKey} style={viewport ? { height: viewport.height, top: viewport.top } : undefined}>{children}</div>, document.body);
 }
 
-function CommunityScreen({ profile, onPostAdded }) {
+function CommunityScreen({ profile, onPostAdded, onGoToMap }) {
   const [placeCommunity, setPlaceCommunity] = useState(null);
   const [timeTravel, setTimeTravel] = useState(false);
   const [search, setSearch] = useState('');
@@ -847,7 +859,7 @@ function CommunityScreen({ profile, onPostAdded }) {
     <CommunityPhotoWall posts={posts} onOpenPlace={(place) => { setPlaceCommunity(place); setTimeTravel(false); }} />
     {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
     {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
-    <button className="fab" onClick={() => { setComposerError(''); setComposerVisibility('private'); setComposerPhotoStyle('original'); setComposer(true); }}>＋</button>
+    <button className="fab" aria-label={t('jr.postOnMap')} onClick={() => (onGoToMap ? onGoToMap() : (setComposerError(''), setComposerVisibility('private'), setComposerPhotoStyle('original'), setComposer(true)))}>＋</button>
     {composer && <ComposeOverlay title={t('comp.title')} busy={savingPost} onClose={() => setComposer(false)}>
       <form className="compose-card memory-compose" onSubmit={submitPost} aria-busy={savingPost}>
         <header className="compose-header"><button type="button" className="close" aria-label={t('common.close')} disabled={savingPost} onClick={() => setComposer(false)}>×</button><span className="eyebrow">{t('comp.eyebrow')}</span><h2>{t('comp.title')}</h2></header>
@@ -884,11 +896,11 @@ function VoiceResult({ result, onReset }) {
   </div>;
 }
 
-function JournalScreen({ profile }) {
+function JournalScreen({ profile, onGoToMap }) {
   const [memories, setMemories] = useState([]);
-  const [uploadKey, setUploadKey] = useState(0);
-  const [journalPhotoStyle, setJournalPhotoStyle] = useState('original');
   const [openMemory, setOpenMemory] = useState(null);
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [visibilityError, setVisibilityError] = useState('');
 
   useEffect(() => {
     if (!openMemory) return undefined;
@@ -903,28 +915,16 @@ function JournalScreen({ profile }) {
     return () => { cancelled = true; };
   }, []);
 
-  const addMemory = async (event) => {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const file = form.get('photo');
+  const changeVisibility = async (memory, visibility) => {
+    setVisibilityBusy(true);
+    setVisibilityError('');
     try {
-      const created = await addPost({
-        photo: file?.size && form.get('journalPhotoStyle') !== 'none' ? file : undefined,
-        text: form.get('text') || t('jr.defaultText'),
-        ...postLocationFromForm(form),
-        takenAt: form.get('takenDate') || null,
-        visibility: 'private',
-        photoStyle: form.get('journalPhotoStyle'),
-        author: profile?.ethicsConsent?.signedName || t('comm.authorDefault'),
-      });
-      setMemories((current) => [created, ...current]);
-      formElement.reset();
-      setJournalPhotoStyle('original');
-      setUploadKey((current) => current + 1);
+      const updated = await setPostVisibility(memory.id, visibility);
+      setMemories((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setOpenMemory(updated);
     } catch (error) {
-      window.alert(error.message);
-    }
+      setVisibilityError(error.message);
+    } finally { setVisibilityBusy(false); }
   };
 
   const removeMemory = async (id) => {
@@ -937,7 +937,7 @@ function JournalScreen({ profile }) {
   return <section className="screen journal-screen page-enter">
     <div className="private-banner">▣ <b>{t('jr.private')}</b></div>
     <header className="section-header"><span className="eyebrow">{t('jr.eyebrow')}</span><h1>{t('jr.title')}</h1><p>{t('jr.intro')}</p></header>
-    <form className="memory-form" onSubmit={addMemory}><PhotoUpload key={uploadKey} large photoStyle={journalPhotoStyle}/><PhotoStylePicker name="journalPhotoStyle" value={journalPhotoStyle} onChange={setJournalPhotoStyle}/><PlaceSelect/><label>{t('jr.date')}<input type="date" name="takenDate" max={new Date().toISOString().slice(0, 10)}/></label><p className="location-note">{t('jr.dateNote')}</p><textarea name="text" placeholder={t('jr.textPh')}/><button className="secondary">{t('jr.save')}</button></form>
+    <div className="journal-post-cta"><button type="button" className="primary wide" onClick={onGoToMap}>{t('jr.postOnMap')}</button><p className="location-note">{t('jr.postOnMapNote')}</p></div>
     {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}><button type="button" className="memory-open" aria-label={t('jr.openDetail')} onClick={() => setOpenMemory(memory)}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}</button><div><small>{memoryMeta(memory)}</small><ExpandableText compact>{memory.text}</ExpandableText><div className="memory-actions"><button type="button" className="memory-view" onClick={() => setOpenMemory(memory)}>{t('jr.openDetail')}</button><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></div></article>)}</div>}
     {memories.length === 0 && <p role="status">{t('jr.empty')}</p>}
     {openMemory && <div className="modal-backdrop memory-detail-backdrop" onClick={() => setOpenMemory(null)}>
@@ -947,6 +947,13 @@ function JournalScreen({ profile }) {
         <div className="memory-detail-body">
           <small>{memoryMeta(openMemory)}</small>
           <p>{openMemory.text}</p>
+          <div className="memory-visibility">
+            <span>{openMemory.visibility === 'community' ? t('jr.isPublic') : t('jr.isPrivate')}</span>
+            <button type="button" className="secondary" disabled={visibilityBusy} onClick={() => changeVisibility(openMemory, openMemory.visibility === 'community' ? 'private' : 'community')}>
+              {visibilityBusy ? t('jr.visibilityBusy') : openMemory.visibility === 'community' ? t('jr.makePrivate') : t('jr.makePublic')}
+            </button>
+            {visibilityError && <p className="form-error" role="alert">{visibilityError}</p>}
+          </div>
         </div>
       </article>
     </div>}
@@ -961,6 +968,8 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [active, setActive] = useState('map');
   const [myPosts, setMyPosts] = useState([]);
+  const [postHint, setPostHint] = useState(false);
+  const goToMapToPost = () => { setPostHint(true); setActive('map'); };
 
   const refreshMyPosts = async () => { setMyPosts(await getMyPosts()); };
 
@@ -979,10 +988,10 @@ export default function App() {
   const pickLanguage = (code) => { setUiLanguage(code); setUiLanguageState(code); setPickingLanguage(false); };
 
   const content = useMemo(() => ({
-    map: <MapScreen profile={fullProfile} onPostAdded={refreshMyPosts} onChangeLanguage={() => setPickingLanguage(true)} />,
-    community: <CommunityScreen profile={fullProfile} onPostAdded={refreshMyPosts} />,
-    journal: <JournalScreen profile={fullProfile} />,
-  })[active], [active, fullProfile, uiLanguage]);
+    map: <MapScreen profile={fullProfile} onPostAdded={(created) => { setPostHint(false); refreshMyPosts(created); }} onChangeLanguage={() => setPickingLanguage(true)} postHint={postHint} onDismissPostHint={() => setPostHint(false)} />,
+    community: <CommunityScreen profile={fullProfile} onPostAdded={refreshMyPosts} onGoToMap={goToMapToPost} />,
+    journal: <JournalScreen profile={fullProfile} onGoToMap={goToMapToPost} />,
+  })[active], [active, fullProfile, uiLanguage, postHint]);
 
   if (!uiLanguage || pickingLanguage) return <LanguagePicker onPick={pickLanguage} />;
   if (!ethicsConsent) return <EthicsConsent onAccept={setEthicsConsent} />;
