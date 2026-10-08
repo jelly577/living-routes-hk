@@ -40,6 +40,7 @@ jobs:
           npm run test:community
           npm run test:districts
           npm run test:memoir
+          npm run test:then-now
 
       - name: Build
         run: npm run build

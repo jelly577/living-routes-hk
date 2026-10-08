@@ -8,13 +8,30 @@ import { getPlaceById, places } from './places.js';
 import { checkpoints, getCheckpointById } from './checkpoints.js';
 import { getDistrict } from './districts.js';
 
-export const findKnownPlace = (id) => (id ? getPlaceById(id) || getCheckpointById(id) : undefined);
+const placeAliases = {
+  'happy-valley-racecourse': ['Happy Valley Racecourse', '跑马地马场', '跑馬地馬場', '马场火灾纪念碑', '馬場火災紀念碑', 'gp:ChIJcVnvqE8ABDQRmlCv6UgfOvk'],
+  'blue-house': ['Blue House', '蓝屋', '藍屋', '藍屋建築群'],
+  'central-market': ['中環街市'],
+  'court-of-final-appeal': ['Court of Final Appeal', '終審法院大樓', '终审法院大楼'],
+  'lee-tung-street': ['利東街', '利东街', '囍帖街'],
+};
+export const normalizePlaceName = (name) => String(name || '').normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
+// Exact names / curated aliases only: never guess from proximity or post text.
+export const findKnownPlace = (value) => {
+  if (!value) return undefined;
+  const direct = getPlaceById(value) || getCheckpointById(value);
+  if (direct) return direct;
+  const name = normalizePlaceName(value);
+  return [...places, ...checkpoints].find((place) =>
+    [place.nameEn, place.nameZh, ...(placeAliases[place.id] || [])].some((alias) => normalizePlaceName(alias) === name));
+};
 
 // Resolve a post's place, falling back to the place info stored on the post.
 export const findPostPlace = (post) => {
   if (post?.locationType === 'none') return undefined;
   if (post?.locationType === 'district') return getDistrict(post.districtId);
-  const known = findKnownPlace(post?.placeId || post?.location);
+  const known = findKnownPlace(post?.placeId) || findKnownPlace(post?.location)
+    || findKnownPlace(post?.placeInfo?.nameEn) || findKnownPlace(post?.placeInfo?.nameZh) || findKnownPlace(post?.place);
   if (known) return known;
   const info = post?.placeInfo;
   if (info && info.lat != null && info.lng != null) {

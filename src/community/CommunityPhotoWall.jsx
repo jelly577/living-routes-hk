@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildThenCards } from '../services/thenNowService.js';
+import { buildThenCards, comparisonPlaceForPost, placeDistrictId } from '../services/thenNowService.js';
 import { localizeStory } from '../content/stories.js';
 import { createNarrator } from '../services/ttsService.js';
 import { findPostPlace } from '../data/locations.js';
@@ -30,16 +30,17 @@ export default function CommunityPhotoWall({ posts, onOpenPlace }) {
   };
 
   const inDistrict = (id) => district === 'all' || id === district;
+  const districtOf = (post) => placeDistrictId(findPostPlace(post)?.id) || post.districtId;
   const archivalPosts = posts.filter((p) => p.era === 'ARCHIVAL');
   const modernPosts = posts.filter((p) => p.era !== 'ARCHIVAL');
   const thenStories = thenCards.filter((c) => inDistrict(c.districtId));
-  const thenPosts = archivalPosts.filter((p) => inDistrict(p.districtId));
-  const nowPosts = modernPosts.filter((p) => inDistrict(p.districtId));
+  const thenPosts = archivalPosts.filter((p) => inDistrict(districtOf(p)));
+  const nowPosts = modernPosts.filter((p) => inDistrict(districtOf(p)));
 
   const chipDistricts = useMemo(() => {
     const ids = new Set();
     thenCards.forEach((c) => c.districtId && ids.add(c.districtId));
-    posts.forEach((p) => p.districtId && ids.add(p.districtId));
+    posts.forEach((p) => districtOf(p) && ids.add(districtOf(p)));
     return districts.filter((d) => ids.has(d.id));
   }, [thenCards, posts]);
 
@@ -96,6 +97,7 @@ export default function CommunityPhotoWall({ posts, onOpenPlace }) {
         <small>⌖ {postPlaceName(post)}</small>
         <p>{postText(post)}</p>
         <b>{postAuthor(post)}</b>
+        <button type="button" className="wall-listen" onClick={() => onOpenPlace(comparisonPlaceForPost(post))}>{t('wall.compare')}</button>
       </div>
     </article>
   );
