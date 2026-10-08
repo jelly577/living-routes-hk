@@ -201,7 +201,17 @@ function stateAt(plan, time) {
     const cardOut = last ? 1 - easeInOut(clamp((seconds - (span - CARD_OUT)) / CARD_OUT)) : 1;
     state.card = Math.min(cardIn, cardOut);
     const y = lerp(travelOffset, focusOffset, first ? easeInOut(clamp(seconds / CARD_IN)) : 1);
-    state.cam = { lat: stop.lat, lng: stop.lng, k: focusK, y };
+    // Slow "breathing" camera while this stop's cards are up, so a stop (and a
+    // one-stop memoir in particular) is never a frozen map. It starts and ends
+    // at the base framing, so travel/outro segments pick up without a jump.
+    const stopSegs = plan.segments.filter((s) => s.type === 'memory' && s.stopIndex === seg.stopIndex);
+    const dwellStart = stopSegs[0].start;
+    const dwellEnd = stopSegs[stopSegs.length - 1].end;
+    const dwell = clamp((time - dwellStart) / (dwellEnd - dwellStart));
+    const bump = Math.sin(Math.PI * easeInOut(dwell));
+    const k = focusK * (1 + 0.28 * bump);
+    const panPx = 34 * Math.sin(2 * Math.PI * dwell) * (seg.stopIndex % 2 === 0 ? 1 : -1);
+    state.cam = { lat: stop.lat + (14 * bump) / k, lng: stop.lng + panPx / (k * COS_LAT), k, y };
     state.legsDone = seg.stopIndex;
     state.traveller = { lat: stop.lat, lng: stop.lng, alpha: 1 };
   } else {

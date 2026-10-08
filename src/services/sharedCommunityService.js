@@ -76,10 +76,22 @@ async function removeSharedPost(id) {
 }
 // Memoir captions come from the `memoir` Edge Function, which holds the model
 // API key server-side. Callers handle failures by falling back to templates.
+// supabase-js only reports "non-2xx status code"; the function's own JSON
+// error (e.g. missing ANTHROPIC_API_KEY, model 502) lives in error.context.
+async function functionErrorDetail(error) {
+  let detail = error.message;
+  try {
+    const status = error.context?.status;
+    const body = await error.context?.json?.();
+    detail = body?.error || detail;
+    if (status) detail = `${detail} (HTTP ${status})`;
+  } catch { /* keep message */ }
+  return detail;
+}
 async function requestMemoirAi(body) {
   await ownerSession();
   const { data, error } = await client.functions.invoke('memoir', { body });
-  if (error) throw new Error(`Memoir AI unavailable: ${error.message}`);
+  if (error) throw new Error(`Memoir AI unavailable: ${await functionErrorDetail(error)}`);
   if (!data || data.error) throw new Error(data?.error || 'Memoir AI returned nothing.');
   return data;
 }
@@ -88,7 +100,7 @@ async function requestMemoirAi(body) {
 async function requestNarrateAi(body) {
   await ownerSession();
   const { data, error } = await client.functions.invoke('narrate', { body });
-  if (error) throw new Error(`Time Travel AI unavailable: ${error.message}`);
+  if (error) throw new Error(`Time Travel AI unavailable: ${await functionErrorDetail(error)}`);
   if (!data || data.error) throw new Error(data?.error || 'Time Travel AI returned nothing.');
   return data;
 }
@@ -96,11 +108,7 @@ async function requestNarrateAi(body) {
 async function requestAnimation(action, payload = {}) {
   await ownerSession();
   const { data, error } = await client.functions.invoke('animate', { body: { action, ...payload } });
-  if (error) {
-    let detail = error.message;
-    try { detail = (await error.context?.json?.())?.error || detail; } catch { /* keep message */ }
-    throw new Error(detail);
-  }
+  if (error) throw new Error(await functionErrorDetail(error));
   if (action === 'download') {
     if (!(data instanceof Blob) || !data.size) throw new Error('The clip download was empty.');
     return new Blob([data], { type: 'video/mp4' });

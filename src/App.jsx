@@ -888,6 +888,14 @@ function JournalScreen({ profile }) {
   const [memories, setMemories] = useState([]);
   const [uploadKey, setUploadKey] = useState(0);
   const [journalPhotoStyle, setJournalPhotoStyle] = useState('original');
+  const [openMemory, setOpenMemory] = useState(null);
+
+  useEffect(() => {
+    if (!openMemory) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setOpenMemory(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openMemory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -922,14 +930,26 @@ function JournalScreen({ profile }) {
   const removeMemory = async (id) => {
     await deletePost(id);
     setMemories((current) => current.filter((memory) => memory.id !== id));
+    setOpenMemory((current) => (current?.id === id ? null : current));
   };
+  const memoryMeta = (memory) => [postPlace(memory), localDay(momentOf(memory)).replaceAll('-', '.'), memory.photoGps ? t('jr.gps') : '', memory.visibility === 'community' ? t('jr.community') : t('jr.onlyMe')].filter(Boolean).join(' · ');
 
   return <section className="screen journal-screen page-enter">
     <div className="private-banner">▣ <b>{t('jr.private')}</b></div>
     <header className="section-header"><span className="eyebrow">{t('jr.eyebrow')}</span><h1>{t('jr.title')}</h1><p>{t('jr.intro')}</p></header>
     <form className="memory-form" onSubmit={addMemory}><PhotoUpload key={uploadKey} large photoStyle={journalPhotoStyle}/><PhotoStylePicker name="journalPhotoStyle" value={journalPhotoStyle} onChange={setJournalPhotoStyle}/><PlaceSelect/><label>{t('jr.date')}<input type="date" name="takenDate" max={new Date().toISOString().slice(0, 10)}/></label><p className="location-note">{t('jr.dateNote')}</p><textarea name="text" placeholder={t('jr.textPh')}/><button className="secondary">{t('jr.save')}</button></form>
-    {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}<div><small>{[postPlace(memory), localDay(momentOf(memory)).replaceAll('-', '.'), memory.photoGps ? t('jr.gps') : '', memory.visibility === 'community' ? t('jr.community') : t('jr.onlyMe')].filter(Boolean).join(' · ')}</small><ExpandableText compact>{memory.text}</ExpandableText><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></article>)}</div>}
+    {memories.length > 0 && <div className="memory-list">{memories.map((memory, index) => <article key={memory.id}><button type="button" className="memory-open" aria-label={t('jr.openDetail')} onClick={() => setOpenMemory(memory)}>{memory.image ? <img className={`photo-style-${memory.photoStyle || 'original'}`} src={memory.image} alt=""/> : <div className="memory-placeholder">{String(index + 1).padStart(2, '0')}</div>}</button><div><small>{memoryMeta(memory)}</small><ExpandableText compact>{memory.text}</ExpandableText><div className="memory-actions"><button type="button" className="memory-view" onClick={() => setOpenMemory(memory)}>{t('jr.openDetail')}</button><DeletePostButton onDelete={() => removeMemory(memory.id)}/></div></div></article>)}</div>}
     {memories.length === 0 && <p role="status">{t('jr.empty')}</p>}
+    {openMemory && <div className="modal-backdrop memory-detail-backdrop" onClick={() => setOpenMemory(null)}>
+      <article className="memory-detail" role="dialog" aria-modal="true" aria-label={postPlace(openMemory)} onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="close" aria-label={t('common.close')} onClick={() => setOpenMemory(null)}>×</button>
+        {openMemory.image && <img className={`photo-style-${openMemory.photoStyle || 'original'}`} src={openMemory.image} alt=""/>}
+        <div className="memory-detail-body">
+          <small>{memoryMeta(openMemory)}</small>
+          <p>{openMemory.text}</p>
+        </div>
+      </article>
+    </div>}
     <MemoirStudio memories={memories}/>
   </section>;
 }

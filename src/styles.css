@@ -576,3 +576,16 @@ h1, h2, h3 { font-family: 'DM Serif Display', serif; font-weight: 400; }
 .tm-caption p { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: #e9efec; }
 .tm-replay { margin-top: 10px; border: 1px solid #ffffff33; border-radius: 10px; background: #ffffff14; color: #fff; padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; }
 .tm-hint { position: absolute; left: 16px; top: 142px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; background: #00000055; color: #ffffffcc; padding: 6px 11px; border-radius: 99px; font-size: 10px; backdrop-filter: blur(6px); pointer-events: none; }
+
+/* Private Journal: tap an entry to see the full photo and text. */
+.memory-list .memory-open { flex: 0 0 57px; padding: 0; border: 0; background: none; border-radius: 12px; cursor: zoom-in; }
+.memory-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.memory-actions .memory-view { border: 0; background: none; padding: 4px 0; color: #173e31; font-size: 9px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.memory-detail-backdrop { place-items: center; padding: 18px; }
+.memory-detail { position: relative; width: 100%; max-height: 88%; overflow: auto; background: #fffaf2; border-radius: 20px; box-shadow: 0 18px 50px #102b2355; }
+.memory-detail img { display: block; width: 100%; max-height: 62vh; object-fit: contain; background: #173e31; border-radius: 20px 20px 0 0; }
+.memory-detail .close { position: absolute; top: 10px; right: 10px; z-index: 1; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #fffaf2e6; color: #173e31; font-size: 20px; line-height: 1; }
+.memory-detail-body { padding: 16px 18px 20px; }
+.memory-detail-body small { color: #c4502f; font-size: 9px; }
+.memory-detail-body p { margin: 8px 0 0; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: #173e31; }
+.memoir-notice-detail { display: block; margin-top: 4px; opacity: .7; font-size: .85em; word-break: break-word; }

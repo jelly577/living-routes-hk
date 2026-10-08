@@ -240,7 +240,7 @@ export default function MemoirStudio({ memories }) {
     </div>
 
     {draft && plan && <div className="memoir-result page-enter">
-      {notice && <p className="memoir-notice">{notice}</p>}
+      {notice && <p className="memoir-notice">{notice}{draft.script.fallbackReason === 'ai-failed' && draft.script.fallbackMessage && <small className="memoir-notice-detail">{draft.script.fallbackMessage}</small>}</p>}
       <div className="memoir-stage">
         <canvas ref={canvasRef} width={VIDEO_SIZE.width} height={VIDEO_SIZE.height} aria-label={t('memo.previewLabel')}/>
       </div>
