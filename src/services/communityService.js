@@ -41,7 +41,8 @@ export async function getPosts({ filter = 'all', bounds, placeId, districtId, po
     if (filter !== 'all' && post.kind !== filter) return false;
     const region = districtId || (getDistrict(placeId) ? placeId : null);
     const postDistrict = placeDistrictId(findPostPlace(post)?.id) || post.districtId;
-    if (region ? postDistrict !== region : placeId && !postMatchesComparisonPlace(post, placeId)) return false;
+    const comparisonId = findKnownPlace(placeId)?.id || placeId;
+    if (region ? postDistrict !== region : comparisonId && !postMatchesComparisonPlace(post, comparisonId)) return false;
     const place = findPostPlace(post);
     return !place || isPointInBounds(place, bounds);
   });
