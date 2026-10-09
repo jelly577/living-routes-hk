@@ -132,6 +132,7 @@ export default function MapViewGoogle({ route, checkpoints = [], onFail, onArriv
   const checkpointMarkersRef = useRef([]); // 打卡点图层 [{ place, marker }]，不参与旅程
   const routeBoundsRef = useRef(null);
   const busStopMarkersRef = useRef([]); // stops of a route picked in bus search
+  const ghostLinesRef = useRef([]); // other routes through the chosen stop, dimmed
   const routeRef = useRef(route);
   const routePathRef = useRef(null); // Directions 返回的 overview_path（沿道路）
   const journeyRef = useRef(null);  // 站间路段预计算
@@ -350,6 +351,16 @@ export default function MapViewGoogle({ route, checkpoints = [], onFail, onArriv
     infoWindowRef.current.setPosition(position);
     infoWindowRef.current.open(map);
   }, [ready, focus]);
+
+  // Other routes through the chosen bus stop: dimmed lines under the lit route.
+  useEffect(() => {
+    if (!ready) return;
+    const gmaps = window.google.maps;
+    ghostLinesRef.current.forEach((line) => line.setMap(null));
+    ghostLinesRef.current = (mode === 'walk' ? [] : route?.ghostPaths || []).map((path) => new gmaps.Polyline({
+      path: path.map(([lat, lng]) => ({ lat, lng })), map: mapRef.current, strokeColor: '#8a958f', strokeOpacity: 0.4, strokeWeight: 3, zIndex: 1,
+    }));
+  }, [ready, route, mode]);
 
   // 打卡点图层：独立于路线和试乘，常显；点击直接打开该地点的投稿面板
   useEffect(() => {

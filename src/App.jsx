@@ -517,7 +517,8 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, o
   const [busState, setBusState] = useState('idle'); // idle | loading | ready | missing | error
   const [stopResults, setStopResults] = useState([]);
   const [pickedStop, setPickedStop] = useState(null);
-  const [busRoute, setBusRoute] = useState(null); // the picked route's label, null = demo route
+  const [busRoute, setBusRoute] = useState(null); // key of the lit route, null = demo route
+  const [busStop, setBusStop] = useState(null); // stop whose routes are on the map
   const [currentPlaceId, setCurrentPlaceId] = useState(null);
   const [timeToNextSec, setTimeToNextSec] = useState(null);
   const [chromeCollapsed, setChromeCollapsed] = useState(false);
@@ -600,13 +601,19 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, o
   const switchMode = (next) => { if (next !== mode) { setMode(next); clearSearch(); } };
 
   const pickStop = (group) => { setPickedStop(group); setQuery(busName(group, getLanguage())); };
-  const pickRoute = async (r) => {
+  // Every route through the chosen stop is drawn dimmed; the picked one is lit.
+  // Tapping another number in the strip switches which one is lit.
+  const routeKey = (r) => `${r.op}|${r.route}|${r.bound}`;
+  const pickRoute = async (r, stop = pickedStop || busStop) => {
     clearSearch();
-    if (isDemoRoute(r)) { setBusRoute(null); setRoute(await getRoute({ mode: 'demo' })); return; }
-    setBusRoute(`${operatorName(r.op, getLanguage())} ${r.route} · ${t('map.busTo', { dest: busName(r.dest, getLanguage()) })}`);
-    setRoute(routeForMap(busData, r, getLanguage()));
+    setBusStop(stop);
+    setBusRoute(routeKey(r));
+    const others = stop ? routesAtGroup(busData, stop).filter((o) => routeKey(o) !== routeKey(r)) : [];
+    const ghostPaths = others.map((o) => routeForMap(busData, o, getLanguage()).path);
+    const lit = isDemoRoute(r) ? await getRoute({ mode: 'demo' }) : routeForMap(busData, r, getLanguage());
+    setRoute({ ...lit, ghostPaths, focusStop: stop ? { lat: stop.lat, lng: stop.lng } : null });
   };
-  const backToDemoRoute = async () => { setBusRoute(null); setRoute(await getRoute({ mode: 'demo' })); };
+  const backToDemoRoute = async () => { setBusRoute(null); setBusStop(null); setRoute(await getRoute({ mode: 'demo' })); };
 
   const stopRoutes = pickedStop && busData ? routesAtGroup(busData, pickedStop) : [];
   const searchOpen = Boolean(query.trim()) && (mode === 'bus'
@@ -672,12 +679,17 @@ function MapScreen({ profile, onPostAdded, onChangeLanguage, postHint = false, o
         </div>}
       </>
     )}
-    {mode === 'bus' && busRoute && !chromeCollapsed && !searchOpen && <div className="bus-route-chip"><span>{busRoute}</span><button type="button" onClick={backToDemoRoute}>{t('map.busBackToDemo')}</button></div>}
+    {mode === 'bus' && busStop && busData && !chromeCollapsed && !searchOpen && <div className="bus-route-strip">
+      <div className="bus-route-strip-head"><span>{t('map.busRoutesAt', { stop: busName(busStop, getLanguage()) })}</span><button type="button" onClick={backToDemoRoute}>{t('map.busBackToDemo')}</button></div>
+      <div className="bus-route-strip-list">{routesAtGroup(busData, busStop).map((r) => <button type="button" key={routeKey(r)} className={`bus-strip-option ${busRoute === routeKey(r) ? 'is-lit' : ''}`} onClick={() => pickRoute(r, busStop)} title={t('map.busTo', { dest: busName(r.dest, getLanguage()) })}>
+        <span className={`bus-badge op-${r.op}`}>{r.route}</span><small>{t('map.busTo', { dest: busName(r.dest, getLanguage()) })}</small>
+      </button>)}</div>
+    </div>}
     {postHint && !postsPlace && <button type="button" className="map-post-hint" onClick={onDismissPostHint}><b>{t('map.postHintTitle')}</b><span>{t('map.postHint')}</span><i aria-hidden="true">×</i></button>}
     {playerOpen && <PlayerSheet profile={profile} placeId={currentPlaceId} remainingTimeSec={timeToNextSec} onClose={() => setPlayerOpen(false)} />}
     {segment && demoing && <DemoNarration segment={segment} profile={profile} />}
     {postsPlace && <PlacePostsSheet key={postsPlace.id} place={postsPlace} profile={profile} initialEra={postEra} onClose={() => { setPostsPlace(null); setPostEra(null); }} onPostAdded={handlePostAdded} />}
-    {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
+    {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} onPost={(place) => { setPlaceCommunity(null); setPostsPlace(place); }} />}
     {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
   </section>;
 }
@@ -976,7 +988,7 @@ function CommunityScreen({ profile, onPostAdded, onGoToMap }) {
     {loadError && <p className="form-error community-error" role="alert">{loadError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)}>{t('comm.retry')}</button></p>}
     <CommunityPhotoWall posts={posts} onOpenPlace={(place) => { setPlaceCommunity(place); setTimeTravel(false); }} onAddStory={(place, era) => onGoToMap?.(place, era)} />
     <button type="button" className="voice-demo-link" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button>
-    {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} />}
+    {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} onPost={(place) => { setPlaceCommunity(null); onGoToMap?.(place, 'MODERN'); }} />}
     {placeCommunity && timeTravel && <TimeMachine key={placeCommunity.id} place={placeCommunity} onClose={() => setTimeTravel(false)} />}
     <button className="fab" aria-label={t('jr.postOnMap')} onClick={() => (onGoToMap ? onGoToMap() : (setComposerError(''), setComposerVisibility('private'), setComposerPhotoStyle('original'), setComposerKind('tourist'), setStoryVoiceConsent(false), setStoryRecording(false), setStoryVoiceSample(null), setComposer(true)))}>＋</button>
     {composer && <ComposeOverlay title={t(composerKind === 'local' ? 'story.title' : 'comp.title')} busy={savingPost} onClose={() => setComposer(false)}>

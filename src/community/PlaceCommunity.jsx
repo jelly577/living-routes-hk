@@ -15,7 +15,7 @@ const postAuthor = (post, lang) => post.authorI18n?.[lang] || post.author;
 //      half, as small translucent bubbles
 //   2. a photo wall of framed posts (stories + visitor photos), revealed when
 //      you pull down to scroll past the chat
-export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
+export default function PlaceCommunity({ place, onClose, onOpenTimeMachine, onPost }) {
   const { past, now } = getThenNowImages(place?.id);
   const lang = getLanguage();
   const [posts, setPosts] = useState([]);
@@ -154,7 +154,7 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
       {/* 单个滚动容器：一整屏今昔照片（浮着新老聊天框）→ 下拉到照片墙 */}
       <div className="pc-scroll" ref={scrollRef}>
         <div className="pc-hero">
-          <div className="pc-hero-img then">{past?.url ? <img src={past.url} alt="" /> : <div className="pc-hero-ph">{t('pc.thenEmpty')}</div>}</div>
+          <div className="pc-hero-img then">{(past?.url || archival.find((p) => p.image)?.image) ? <img src={past?.url || archival.find((p) => p.image).image} alt="" /> : <div className="pc-hero-ph">{t('pc.thenEmpty')}</div>}</div>
           <div className="pc-hero-img now">{(modern.find((p) => p.image)?.image || now?.url) ? <img src={modern.find((p) => p.image)?.image || now.url} alt="" /> : <div className="pc-hero-ph">{placeName(place) || t('loc.none')}</div>}</div>
           <div className="pc-hero-line" />
           <div className="pc-hero-shade" />
@@ -165,6 +165,7 @@ export default function PlaceCommunity({ place, onClose, onOpenTimeMachine }) {
           <header className="pc-head">
             <span className="eyebrow">{t('pc.eyebrow')}</span>
             <h1>{placeName(place) || t('loc.none')}</h1>
+            {onPost && Number.isFinite(place?.lat) && Number.isFinite(place?.lng) && <button type="button" className="pc-post" onClick={() => onPost(place)}>{t('mapui.postHere')}</button>}
           </header>
 
           {/* 对话框：浮在照片上的新老对话气泡，老在旧照片一侧、新在新照片一侧 */}

@@ -113,7 +113,9 @@ export default function MapViewLeaflet({ route, checkpoints = [], onSelectPlace,
 
     layer.clearLayers();
 
-    const polyline = L.polyline(roadPath || route.path, { color: '#c4502f', weight: 4, opacity: 0.9 });
+    // Other routes through the chosen bus stop: dimmed, under the lit one.
+    route.ghostPaths?.forEach((path) => L.polyline(path, { color: '#8a958f', weight: 3, opacity: 0.35 }).addTo(layer));
+    const polyline = L.polyline(roadPath || route.path, { color: '#c4502f', weight: 5, opacity: 0.95 });
     polyline.addTo(layer);
 
     // Stops of a route picked in the bus search: small dots, tap for the name.
