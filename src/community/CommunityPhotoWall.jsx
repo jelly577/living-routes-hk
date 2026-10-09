@@ -3,7 +3,7 @@ import { buildThenCards, comparisonPlaceForPost, placeDistrictId } from '../serv
 import { localizeStory } from '../content/stories.js';
 import { createNarrator } from '../services/ttsService.js';
 import { findPostPlace } from '../data/locations.js';
-import { districts, getDistrict } from '../data/districts.js';
+import { districts, getDistrict, nearestDistrict, regionOfDistrict, regions } from '../data/districts.js';
 import { getLanguage, placeName, t } from '../i18n.js';
 
 const squash = (text) => String(text || '').toLowerCase().replace(/[\s·・()（）\-_,，.。&＆'’]/g, '');
@@ -13,6 +13,8 @@ const squash = (text) => String(text || '').toLowerCase().replace(/[\s·・()（
 // stories from visitors). Tap a card for the full then-and-now page.
 export default function CommunityPhotoWall({ posts, onOpenPlace, onAddStory }) {
   const lang = getLanguage();
+  // Two-level filter: an area (HK Island / Kowloon / NT / Islands), then one of its districts.
+  const [region, setRegion] = useState('all');
   const [district, setDistrict] = useState('all');
   const [query, setQuery] = useState('');
   const [playingId, setPlayingId] = useState(null);
@@ -30,6 +32,15 @@ export default function CommunityPhotoWall({ posts, onOpenPlace, onAddStory }) {
   const postText = (post) => post.textI18n?.[lang] || post.text;
   const postAuthor = (post) => post.authorI18n?.[lang] || post.author;
   const districtOf = (post) => placeDistrictId(findPostPlace(post)?.id) || post.districtId;
+  // Every place gets a district from where it is, so filing never depends on
+  // whether the poster happened to pick one.
+  const districtOfPlace = (place, fallback) => {
+    if (place.kind === 'district') return place.id;
+    const known = placeDistrictId(place.id);
+    if (known) return known;
+    if (Number.isFinite(place.lat) && Number.isFinite(place.lng)) return nearestDistrict(place)?.id || fallback || null;
+    return fallback || null;
+  };
 
   // Group everything by place: { place, districtId, then: [...], now: [...] }.
   const pairs = useMemo(() => {
@@ -40,9 +51,10 @@ export default function CommunityPhotoWall({ posts, onOpenPlace, onAddStory }) {
       if (!item.districtId && districtId) item.districtId = districtId;
       return item;
     };
-    for (const card of thenCards) entry(card.place, card.districtId).then.push({ kind: 'story', card });
+    for (const card of thenCards) entry(card.place, districtOfPlace(card.place, card.districtId)).then.push({ kind: 'story', card });
     for (const post of posts) {
-      const item = entry(comparisonPlaceForPost(post), districtOf(post));
+      const place = comparisonPlaceForPost(post);
+      const item = entry(place, districtOfPlace(place, districtOf(post)));
       if (post.era === 'ARCHIVAL') item.then.unshift({ kind: 'post', post });
       else item.now.push(post);
       const when = String(post.takenAt || post.createdAt || '');
@@ -57,14 +69,28 @@ export default function CommunityPhotoWall({ posts, onOpenPlace, onAddStory }) {
     ));
   }, [thenCards, posts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const chipDistricts = useMemo(() => {
-    const ids = new Set(pairs.map((p) => p.districtId).filter(Boolean));
-    return districts.filter((d) => ids.has(d.id));
+  // Counts per area and district (only those with stories get a chip).
+  const counts = useMemo(() => {
+    const byDistrict = new Map();
+    const byRegion = new Map();
+    for (const p of pairs) {
+      const d = p.districtId || 'other';
+      byDistrict.set(d, (byDistrict.get(d) || 0) + 1);
+      const r = regionOfDistrict(p.districtId)?.id || 'other';
+      byRegion.set(r, (byRegion.get(r) || 0) + 1);
+    }
+    return { byDistrict, byRegion };
   }, [pairs]);
+  const regionChips = regions.filter((r) => counts.byRegion.get(r.id));
+  const districtChips = region === 'all' || region === 'other' ? [] : regions.find((r) => r.id === region).districts
+    .filter((id) => counts.byDistrict.get(id)).map(getDistrict);
+  const chooseRegion = (id) => { setRegion(id); setDistrict('all'); };
 
   const q = squash(query);
-  const shown = pairs.filter((p) => (district === 'all' || p.districtId === district)
-    && (!q || squash(`${placeName(p.place)} ${p.place.nameEn || ''} ${p.place.nameZh || ''}`).includes(q)));
+  const inArea = (p) => (region === 'all' || (region === 'other' ? !regionOfDistrict(p.districtId) : regionOfDistrict(p.districtId)?.id === region))
+    && (district === 'all' || p.districtId === district);
+  const shown = pairs.filter((p) => inArea(p)
+    && (!q || squash(`${placeName(p.place)} ${p.place.nameEn || ''} ${p.place.nameZh || ''} ${p.place.nameZhHK || ''}`).includes(q)));
 
   const stopAll = () => { narrator.stop(); elderNarrator.stop(); };
   const playStory = (card, event) => {
@@ -131,9 +157,14 @@ export default function CommunityPhotoWall({ posts, onOpenPlace, onAddStory }) {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('comm.searchPh')} aria-label={t('comm.searchPh')} />
         {query && <button type="button" onClick={() => setQuery('')} aria-label={t('common.close')}>×</button>}
       </div>
-      {chipDistricts.length > 1 && <div className="wall-districts">
-        <button className={district === 'all' ? 'active' : ''} onClick={() => setDistrict('all')}>{t('wall.districtAll')}</button>
-        {chipDistricts.map((d) => <button key={d.id} className={district === d.id ? 'active' : ''} onClick={() => setDistrict(d.id)}>{placeName(d)}</button>)}
+      <div className="wall-districts wall-regions">
+        <button className={region === 'all' ? 'active' : ''} onClick={() => chooseRegion('all')}>{t('wall.districtAll')} <i>{pairs.length}</i></button>
+        {regionChips.map((r) => <button key={r.id} className={region === r.id ? 'active' : ''} onClick={() => chooseRegion(r.id)}>{placeName(r)} <i>{counts.byRegion.get(r.id)}</i></button>)}
+        {counts.byRegion.get('other') > 0 && <button className={region === 'other' ? 'active' : ''} onClick={() => chooseRegion('other')}>{t('wall.areaOther')} <i>{counts.byRegion.get('other')}</i></button>}
+      </div>
+      {districtChips.length > 1 && <div className="wall-districts wall-subdistricts">
+        <button className={district === 'all' ? 'active' : ''} onClick={() => setDistrict('all')}>{t('wall.areaAllOf', { area: placeName(regions.find((r) => r.id === region)) })}</button>
+        {districtChips.map((d) => <button key={d.id} className={district === d.id ? 'active' : ''} onClick={() => setDistrict(d.id)}>{placeName(d)} <i>{counts.byDistrict.get(d.id)}</i></button>)}
       </div>}
 
       {shown.length === 0 ? (

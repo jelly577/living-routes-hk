@@ -124,6 +124,8 @@ function nearestWithin(point, spots) {
   return best;
 }
 export const nearestNamedSpot = (point) => nearestWithin(point, landmarks) || nearestWithin(point, OWN_SPOTS);
+// Our heritage stops / check-in points first (tight radius), then sights.
+export const nearestOwnThenNamedSpot = (point) => nearestWithin(point, OWN_SPOTS) || nearestWithin(point, landmarks);
 
 // Which stop a located memory belongs to. District-only posts stay at their
 // district (their pin is only an approximate anchor, so naming a sight there

@@ -27,6 +27,16 @@ export const districts = rows.map(([slug, nameEn, nameZh, nameZhHK, lat, lng]) =
 }));
 export const getDistrict = (id) => districts.find((district) => district.id === id);
 
+// The four areas Hongkongers think in, each with its districts in the
+// government's order — used to file the community wall systematically.
+export const regions = [
+  { id: 'hk-island', nameEn: 'Hong Kong Island', nameZh: '港岛', nameZhHK: '港島', districts: ['central-western', 'wan-chai', 'eastern', 'southern'] },
+  { id: 'kowloon', nameEn: 'Kowloon', nameZh: '九龙', nameZhHK: '九龍', districts: ['yau-tsim-mong', 'sham-shui-po', 'kowloon-city', 'wong-tai-sin', 'kwun-tong'] },
+  { id: 'new-territories', nameEn: 'New Territories', nameZh: '新界', nameZhHK: '新界', districts: ['kwai-tsing', 'tsuen-wan', 'tuen-mun', 'yuen-long', 'north', 'tai-po', 'sha-tin', 'sai-kung'] },
+  { id: 'islands', nameEn: 'Islands', nameZh: '离岛', nameZhHK: '離島', districts: ['islands'] },
+].map((region) => ({ ...region, districts: region.districts.map((slug) => `district-${slug}`) }));
+export const regionOfDistrict = (districtId) => regions.find((region) => region.districts.includes(districtId)) || null;
+
 // Closest district anchor to a point — used to file a map-tapped post under a
 // district so it groups with the Community wall. Approximate by design.
 export function nearestDistrict(point) {

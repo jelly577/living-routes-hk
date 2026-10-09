@@ -1078,3 +1078,21 @@ h1, h2, h3 { line-height: 1.06; }
 .place-search-results b { color: #f2d8a7; }
 .place-search-results small, .place-search-results p { color: #8aa096; }
 .bus-results .bus-results-head { color: #e48555; }
+
+/* Post from the then/now door */
+.pc-post { margin-top: 10px; border: 0; border-radius: 999px; padding: 8px 14px; background: #c9a24b; color: #1a1204; font-size: 12px; font-weight: 800; box-shadow: 0 6px 16px #00000040; cursor: pointer; }
+
+/* Bus: routes through the chosen stop; the lit one is highlighted */
+.bus-route-strip { position: absolute; z-index: 5; top: 176px; left: 16px; right: 16px; padding: 8px; background: #15271ff2; border: 1px solid #2e463b; border-radius: 14px; box-shadow: 0 8px 22px #00000040; }
+.bus-route-strip-head { display: flex; align-items: center; gap: 8px; margin: 0 4px 6px; color: #f2d8a7; font-size: 11px; font-weight: 700; }
+.bus-route-strip-head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bus-route-strip-head button { border: 0; border-radius: 9px; padding: 5px 9px; background: #2e463b; color: #f2d8a7; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.bus-route-strip-list { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.bus-strip-option { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 3px; border: 1px solid transparent; border-radius: 10px; padding: 5px 6px; background: transparent; opacity: .55; cursor: pointer; }
+.bus-strip-option small { max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c6d1cb; font-size: 9px; }
+.bus-strip-option.is-lit { opacity: 1; border-color: #c9a24b; background: #1f3529; }
+
+/* Community filter: areas, then districts, with counts */
+.wall-districts button i { margin-left: 4px; font-style: normal; opacity: .6; font-size: .9em; }
+.wall-subdistricts { margin-top: -4px; padding-left: 10px; border-left: 2px solid #2e463b; }
+.wall-subdistricts button { font-size: 11px; padding: 6px 10px; }
