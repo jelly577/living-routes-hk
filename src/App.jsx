@@ -16,6 +16,7 @@ import CommunityPhotoWall from './community/CommunityPhotoWall.jsx';
 import PlaceCommunity from './community/PlaceCommunity.jsx';
 import TimeMachine from './community/TimeMachine.jsx';
 import VoiceSampleRecorder from './community/VoiceSampleRecorder.jsx';
+import VoiceSamplingPanel from './community/VoiceSamplingPanel.jsx';
 import { isHeritagePlace } from './services/thenNowService.js';
 import { searchLocalPlaces, searchOnlinePlaces } from './services/placeSearch.js';
 import { isDemoRoute, loadBusData, nameIn as busName, operatorName, routeForMap, routesAtGroup, searchStops } from './services/busService.js';
@@ -986,6 +987,7 @@ function CommunityScreen({ profile, onPostAdded, onGoToMap }) {
   return <section className="screen community-screen page-enter">
     <header className="section-header"><span className="eyebrow">{t('comm.eyebrow')}</span><h1>{t('comm.title')}</h1><p>{t('comm.intro')}</p>{savedNotice && <div className="save-notice">✓ {savedNotice}</div>}</header>
     {loadError && <p className="form-error community-error" role="alert">{loadError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)}>{t('comm.retry')}</button></p>}
+    <VoiceSamplingPanel name={profile?.ethicsConsent?.signedName || ''} />
     <CommunityPhotoWall posts={posts} onOpenPlace={(place) => { setPlaceCommunity(place); setTimeTravel(false); }} onAddStory={(place, era) => onGoToMap?.(place, era)} />
     <button type="button" className="voice-demo-link" onClick={() => { setVoiceDemo(true); setVoiceResult(null); }}>{t('comm.voiceTrigger')}</button>
     {placeCommunity && <PlaceCommunity place={placeCommunity} onClose={() => setPlaceCommunity(null)} onOpenTimeMachine={() => setTimeTravel(true)} onPost={(place) => { setPlaceCommunity(null); onGoToMap?.(place, 'MODERN'); }} />}

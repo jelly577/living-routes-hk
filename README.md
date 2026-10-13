@@ -1,5 +1,18 @@
 # Living Routes HK · 城市声线
 
+## Community voice sampling
+
+Community now includes a standalone voice-sampling panel for any contributor,
+not only elder stories. It records up to 60 seconds after an explicit local-storage
+consent and a browser microphone permission prompt. Confirmed samples are saved
+in a separate private IndexedDB database (`living-routes-hk-private-voice`).
+Users can preview, replace or delete the sample; clearing browser data removes it.
+The sample is not attached to public Community posts or sent to Supabase/AI.
+Voice cloning is not connected. Future personalized narration needs a separate
+provider-specific consent and integration; existing browser narration does not
+reproduce the contributor's recorded voice. One sample is stored per browser/origin,
+not per permanent account. Test with `npm run test:voice-sampling`.
+
 这是 React/Vite 实现的 mobile-first MVP。当前固定示范路线为：
 
 > **城巴 1 号线：中环（港澳码头）→ 跑马地（上）**
