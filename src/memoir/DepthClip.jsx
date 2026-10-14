@@ -192,6 +192,10 @@ export default function DepthClip({
         gl.uniform2f(uUvOffset, crop.ox, crop.oy);
         gl.uniform2f(uUvScale, crop.sx, crop.sy);
 
+        // Same as DepthPhoto: images decode top-left-first while WebGL samples
+        // with v=0 at the bottom, so flip on upload to avoid an upside-down photo.
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
         imageTex = makeTexture();
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, imageTex);

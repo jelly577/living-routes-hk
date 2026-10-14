@@ -160,6 +160,10 @@ export default function DepthPhoto({ src, depth, alt, className }) {
         gl.uniform2f(uUvOffset, crop.ox, crop.oy);
         gl.uniform2f(uUvScale, crop.sx, crop.sy);
 
+        // Images decode top-left-first, but WebGL samples the texture with v=0
+        // at the bottom; flip on upload so the photo isn't rendered upside down.
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
         imageTex = makeTexture();
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, imageTex);
